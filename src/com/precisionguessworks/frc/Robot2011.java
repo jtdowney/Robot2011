@@ -8,6 +8,7 @@ public class Robot2011 extends IterativeRobot {
      * used for any initialization code.
      */
     public void robotInit() {
+        //Look, a comment!
     }
 
     /**
