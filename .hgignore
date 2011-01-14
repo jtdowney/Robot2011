@@ -3,3 +3,8 @@
 \.chg\..*$
 \.rej$
 \.conflict\~$
+nbproject\/private\/.*$ 
+build\/.*$ 
+suite\/.*$ 
+j2meclasses\/.*$ 
+dist\/.*$ 
