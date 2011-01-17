@@ -20,6 +20,7 @@ public class Robot2011 extends IterativeRobot {
     }
 
     public void disabledPeriodic() {
+        // test
     }
 
     public void autonomousPeriodic() {
