@@ -1,6 +1,7 @@
 package com.precisionguessworks.frc;
 
 import edu.wpi.first.wpilibj.*;
+import edu.wpi.first.wpilibj.can.CANTimeoutException;
 
 public class Robot2011 extends IterativeRobot {
     private DigitalInput line1;
@@ -8,6 +9,12 @@ public class Robot2011 extends IterativeRobot {
     private RobotDrive drive;
     private Joystick joystick1;
     private Joystick joystick2;
+    private CANJaguar frontLeftJaguar;
+    private CANJaguar rearLeftJaguar;
+    private CANJaguar frontRightJaguar;
+    private CANJaguar rearRightJaguar;
+    private Encoder leftEncoder;
+    private Encoder rightEncoder;
     private int lastSeen;
     private boolean left, right;
 
@@ -18,9 +25,33 @@ public class Robot2011 extends IterativeRobot {
     public void robotInit() {
         System.out.println("Beginning robot initialization");
 
+        while (true) {
+            try {
+                this.frontLeftJaguar = new CANJaguar(2);
+                this.rearLeftJaguar = new CANJaguar(3);
+                this.frontRightJaguar = new CANJaguar(4);
+                this.rearRightJaguar = new CANJaguar(5);
+
+                break;
+            } catch (CANTimeoutException ex) {
+                System.out.println("CAN Timeout");
+            }
+        }
+
+        this.leftEncoder = new Encoder(5, 6);
+        this.leftEncoder.start();
+        this.rightEncoder = new Encoder(7, 8);
+        this.rightEncoder.start();
+
+        System.out.println("CAN Initialized");
+
         this.line1 = new DigitalInput(1);
         this.line2 = new DigitalInput(2);
-        this.drive = new RobotDrive(2, 3, 4, 5);
+        this.drive = new RobotDrive(
+                this.frontLeftJaguar,
+                this.rearLeftJaguar,
+                this.frontRightJaguar,
+                this.rearRightJaguar);
         this.joystick1 = new Joystick(1);
         this.joystick2 = new Joystick(2);
 
@@ -94,6 +125,8 @@ public class Robot2011 extends IterativeRobot {
         if(sample == 10)
         {
             System.out.println("$" + ultra.getRangeMM() + "@$");
+            System.out.println("left: " + leftEncoder.get() +
+                    " right: " + rightEncoder.get());
             sample = 0;
         }
 
