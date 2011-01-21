@@ -21,6 +21,8 @@ public class Robot2011 extends IterativeRobot {
     private Ultrasonic ultra;
     int sample = 0;
     int sampleCount = 0;
+    private boolean motorsOn;
+    private boolean changingState;
 
     public void robotInit() {
         System.out.println("Beginning robot initialization");
@@ -64,29 +66,43 @@ public class Robot2011 extends IterativeRobot {
     public void disabledPeriodic() {
     }
 
-    public static final double AUTO_SPEED = -.3;
-    public static final double TURN_SPEED = -.25;
+    public static final double AUTO_SPEED = -.45;
+    public static final double TURN_SPEED = -.35;
 
     public static final int LEFT = 1;
     public static final int RIGHT = 2;
     public static final int BOTH = 3;
 
-
+    public static final int NUM_SAMPLES = 3;
 
     public void autonomousPeriodic() {
-        if(sampleCount == 4)
+        sample += ultra.getRangeMM();
+        sampleCount++;
+
+        if(sampleCount == NUM_SAMPLES - 1)
         {
-            sample >>= 4;
+            sample = sample / (sampleCount + 1);
+            changingState = motorsOn;
+            motorsOn = sample > 500;
+            if (motorsOn != changingState)
+                System.out.println("Changing state to Motors " +
+                        (changingState ? "On" : "Off"));
         }
-        if(sampleCount == 5)
+        if(sampleCount == NUM_SAMPLES)
         {
             sampleCount = 0;
             sample = 0;
         }
-        
-        sample += ultra.getRangeMM();
-        sampleCount++;
+        if(!motorsOn && sampleCount == NUM_SAMPLES - 1){
+            drive.stopMotor();
+            System.out.println("Distance: " + sample + " Stopping the motors!!");
+        }
+        if(motorsOn){
+            lineTracking();
+        }
+    }
 
+    private void lineTracking(){
         left = !line1.get();
         right = !line2.get();
 
@@ -94,19 +110,16 @@ public class Robot2011 extends IterativeRobot {
         {
             drive.setLeftRightMotorOutputs(AUTO_SPEED, AUTO_SPEED);
             lastSeen = BOTH;
-            System.out.println("Both on");
         }
         else if(left)
         {
             drive.setLeftRightMotorOutputs(AUTO_SPEED, AUTO_SPEED);
             lastSeen = LEFT;
-            System.out.println("1 on");
         }
         else if(right)
         {
             drive.setLeftRightMotorOutputs(AUTO_SPEED, AUTO_SPEED);
             lastSeen = RIGHT;
-            System.out.println("2 on");
         }
         else
         {
@@ -116,7 +129,6 @@ public class Robot2011 extends IterativeRobot {
                 drive.setLeftRightMotorOutputs(-TURN_SPEED, TURN_SPEED);
             else
                 drive.setLeftRightMotorOutputs(0, 0);
-            System.out.println("None on");
         }
     }
 
@@ -124,7 +136,7 @@ public class Robot2011 extends IterativeRobot {
         sample++;
         if(sample == 10)
         {
-            System.out.println("$" + ultra.getRangeMM() + "@$");
+            System.out.println("$" + ultra.getRangeMM() + "$");
             System.out.println("left: " + leftEncoder.get() +
                     " right: " + rightEncoder.get());
             sample = 0;
