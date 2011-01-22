@@ -6,7 +6,7 @@ import edu.wpi.first.wpilibj.can.CANTimeoutException;
 public class Robot2011 extends IterativeRobot {
     private DigitalInput line1;
     private DigitalInput line2;
-    private RobotDrive drive;
+    //private RobotDrive drive;
     private Joystick joystick1;
     private Joystick joystick2;
     private CANJaguar frontLeftJaguar;
@@ -29,8 +29,10 @@ public class Robot2011 extends IterativeRobot {
 
         while (true) {
             try {
-                this.frontLeftJaguar = new CANJaguar(2);
-                this.rearLeftJaguar = new CANJaguar(3);
+                this.frontLeftJaguar = new CANJaguar(2, CANJaguar.ControlMode.kCurrent);
+                this.rearLeftJaguar = new CANJaguar(3, CANJaguar.ControlMode.kSpeed);
+                this.rearLeftJaguar.setSpeedReference(CANJaguar.SpeedReference.kQuadEncoder);
+                
                 this.frontRightJaguar = new CANJaguar(4);
                 this.rearRightJaguar = new CANJaguar(5);
 
@@ -40,20 +42,20 @@ public class Robot2011 extends IterativeRobot {
             }
         }
 
-        this.leftEncoder = new Encoder(5, 6);
+        this.leftEncoder = new Encoder(6, 5);
         this.leftEncoder.start();
-        this.rightEncoder = new Encoder(7, 8);
+        this.rightEncoder = new Encoder(8, 7);
         this.rightEncoder.start();
 
         System.out.println("CAN Initialized");
 
         this.line1 = new DigitalInput(1);
         this.line2 = new DigitalInput(2);
-        this.drive = new RobotDrive(
-                this.frontLeftJaguar,
-                this.rearLeftJaguar,
-                this.frontRightJaguar,
-                this.rearRightJaguar);
+//        this.drive = new RobotDrive(
+//                this.frontLeftJaguar,
+//                this.rearLeftJaguar,
+//                this.frontRightJaguar,
+//                this.rearRightJaguar);
         this.joystick1 = new Joystick(1);
         this.joystick2 = new Joystick(2);
 
@@ -61,6 +63,12 @@ public class Robot2011 extends IterativeRobot {
         this.ultra.setAutomaticMode(true);
 
         System.out.println("Robot initialized");
+    }
+
+    private void driveRobot(double left, double right) throws CANTimeoutException
+    {
+        rearLeftJaguar.setX(left, (byte)1);
+        frontLeftJaguar.setX(rearLeftJaguar.getOutputCurrent());
     }
 
     public void disabledPeriodic() {
@@ -136,7 +144,7 @@ public class Robot2011 extends IterativeRobot {
         sample++;
         if(sample == 10)
         {
-            System.out.println("$" + ultra.getRangeMM() + "$");
+            System.out.println("$" + ultra.getRangeMM() + "^");
             System.out.println("left: " + leftEncoder.get() +
                     " right: " + rightEncoder.get());
             sample = 0;
@@ -150,30 +158,35 @@ public class Robot2011 extends IterativeRobot {
         else
             this.drive.setLeftRightMotorOutputs(joystick1.getY(), joystick2.getY());
         
-//        if(left && right)
-//        {
-//            System.out.println("Both on");
-//        }
-//        else if(left)
-//        {
-//            System.out.println("1 on");
-//        }
-//        else if(right)
-//        {
-//            System.out.println("2 on");
-//        }
-//        else
-//        {
-//            System.out.print("None on: ");
-//            if(lastSeen == LEFT)
-//            {
-//                System.out.println("left seen last");
-//            }
-//            else if(lastSeen == RIGHT)
-//            {
-//                System.out.println("right seen last");
-//            }
-//
-//        }
+        //printLineState(left, right);
+    }
+
+    private void printLineState(boolean left, boolean right)
+    {
+        if(left && right)
+        {
+            System.out.println("Both on");
+        }
+        else if(left)
+        {
+            System.out.println("1 on");
+        }
+        else if(right)
+        {
+            System.out.println("2 on");
+        }
+        else
+        {
+            System.out.print("None on: ");
+            if(lastSeen == LEFT)
+            {
+                System.out.println("left seen last");
+            }
+            else if(lastSeen == RIGHT)
+            {
+                System.out.println("right seen last");
+            }
+
+        }
     }
 }
