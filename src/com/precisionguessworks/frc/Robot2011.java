@@ -13,8 +13,6 @@ public class Robot2011 extends IterativeRobot {
     private CANJaguar rearLeftJaguar;
     private CANJaguar frontRightJaguar;
     private CANJaguar rearRightJaguar;
-    private Encoder leftEncoder;
-    private Encoder rightEncoder;
     private int lastSeen;
     private boolean left, right;
 
@@ -29,23 +27,23 @@ public class Robot2011 extends IterativeRobot {
 
         while (true) {
             try {
-                this.frontLeftJaguar = new CANJaguar(2, CANJaguar.ControlMode.kCurrent);
+                this.frontLeftJaguar = new CANJaguar(2, CANJaguar.ControlMode.kVoltage);
+                this.frontLeftJaguar.enableControl();
+
                 this.rearLeftJaguar = new CANJaguar(3, CANJaguar.ControlMode.kSpeed);
                 this.rearLeftJaguar.setSpeedReference(CANJaguar.SpeedReference.kQuadEncoder);
+                this.rearLeftJaguar.setPID(1.5, 0, 0);
+                this.rearLeftJaguar.configEncoderCodesPerRev(2);
+                this.rearLeftJaguar.enableControl();
                 
-                this.frontRightJaguar = new CANJaguar(4);
-                this.rearRightJaguar = new CANJaguar(5);
+//                this.frontRightJaguar = new CANJaguar(4);
+//                this.rearRightJaguar = new CANJaguar(5);
 
                 break;
             } catch (CANTimeoutException ex) {
                 System.out.println("CAN Timeout");
             }
         }
-
-        this.leftEncoder = new Encoder(6, 5);
-        this.leftEncoder.start();
-        this.rightEncoder = new Encoder(8, 7);
-        this.rightEncoder.start();
 
         System.out.println("CAN Initialized");
 
@@ -65,10 +63,26 @@ public class Robot2011 extends IterativeRobot {
         System.out.println("Robot initialized");
     }
 
+    private int count;
     private void driveRobot(double left, double right) throws CANTimeoutException
     {
-        rearLeftJaguar.setX(left, (byte)1);
-        frontLeftJaguar.setX(rearLeftJaguar.getOutputCurrent());
+        rearLeftJaguar.setX(left * 32767, (byte)1);
+        frontLeftJaguar.setX(rearLeftJaguar.getOutputVoltage(), (byte)1);
+        //frontLeftJaguar.updateSyncGroup((byte)1);
+        CANJaguar.updateSyncGroup((byte)1);
+
+        if ((count % 10) == 0)
+        {
+            System.out.println("output: " + rearLeftJaguar.getOutputVoltage());
+            System.out.println("bus:    " + rearLeftJaguar.getBusVoltage());
+            System.out.println("% vbus: " + rearLeftJaguar.getOutputVoltage() / rearLeftJaguar.getBusVoltage());
+        }
+
+        this.count++;
+
+//        System.out.println("Setting left to " + left + ", " + rearLeftJaguar.getOutputCurrent());
+//        if(sample % 2 == 0)
+//            System.out.println("Setting left to " + rearLeftJaguar.getOutputVoltage() + ", " + frontLeftJaguar.getOutputVoltage());
     }
 
     public void disabledPeriodic() {
@@ -102,63 +116,71 @@ public class Robot2011 extends IterativeRobot {
             sample = 0;
         }
         if(!motorsOn && sampleCount == NUM_SAMPLES - 1){
-            drive.stopMotor();
-            System.out.println("Distance: " + sample + " Stopping the motors!!");
+            try {
+                driveRobot(0, 0);
+                System.out.println("Distance: " + sample + " Stopping the motors!!");
+            } catch (CANTimeoutException ex) {
+                System.out.println("CAN timeout");
+            }
         }
         if(motorsOn){
-            lineTracking();
+            try {
+                lineTracking();
+            } catch (CANTimeoutException ex) {
+                System.out.println("CAN timeout");
+            }
         }
     }
 
-    private void lineTracking(){
+    private void lineTracking() throws CANTimeoutException{
         left = !line1.get();
         right = !line2.get();
 
         if(left && right)
         {
-            drive.setLeftRightMotorOutputs(AUTO_SPEED, AUTO_SPEED);
+            driveRobot(AUTO_SPEED, AUTO_SPEED);
             lastSeen = BOTH;
         }
         else if(left)
         {
-            drive.setLeftRightMotorOutputs(AUTO_SPEED, AUTO_SPEED);
+            driveRobot(AUTO_SPEED, AUTO_SPEED);
             lastSeen = LEFT;
         }
         else if(right)
         {
-            drive.setLeftRightMotorOutputs(AUTO_SPEED, AUTO_SPEED);
+            driveRobot(AUTO_SPEED, AUTO_SPEED);
             lastSeen = RIGHT;
         }
         else
         {
             if(lastSeen == LEFT)
-                drive.setLeftRightMotorOutputs(TURN_SPEED, -TURN_SPEED);
+                driveRobot(TURN_SPEED, -TURN_SPEED);
             else if(lastSeen == RIGHT)
-                drive.setLeftRightMotorOutputs(-TURN_SPEED, TURN_SPEED);
+                driveRobot(-TURN_SPEED, TURN_SPEED);
             else
-                drive.setLeftRightMotorOutputs(0, 0);
+                driveRobot(0, 0);
         }
     }
 
     public void teleopPeriodic() {
-        sample++;
-        if(sample == 10)
-        {
-            System.out.println("$" + ultra.getRangeMM() + "^");
-            System.out.println("left: " + leftEncoder.get() +
-                    " right: " + rightEncoder.get());
-            sample = 0;
+        try {
+            sample++;
+            if (sample == 10) {
+                System.out.println("$" + ultra.getRangeMM() + "^");
+                sample = 0;
+            }
+            left = !line1.get();
+            right = !line2.get();
+            if (!(joystick1.getTrigger() || joystick2.getTrigger())) {
+                driveRobot(joystick1.getY() / 2, joystick2.getY() / 2);
+            } else {
+                driveRobot(joystick1.getY(), joystick2.getY());
+                //printLineState(left, right);
+            }
+            //printLineState(left, right);
+        } catch (CANTimeoutException ex) {
+            System.out.println("CAN timeout");
         }
-
-        left = !line1.get();
-        right = !line2.get();
-
-        if(!(joystick1.getTrigger() || joystick2.getTrigger()))
-            this.drive.setLeftRightMotorOutputs(joystick1.getY() / 2, joystick2.getY() / 2);
-        else
-            this.drive.setLeftRightMotorOutputs(joystick1.getY(), joystick2.getY());
-        
-        //printLineState(left, right);
     }
 
     private void printLineState(boolean left, boolean right)
