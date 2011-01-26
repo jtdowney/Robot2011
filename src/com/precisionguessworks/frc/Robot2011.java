@@ -1,6 +1,7 @@
 package com.precisionguessworks.frc;
 
 import edu.wpi.first.wpilibj.*;
+import edu.wpi.first.wpilibj.camera.AxisCamera;
 import edu.wpi.first.wpilibj.can.CANTimeoutException;
 
 public class Robot2011 extends IterativeRobot {
@@ -13,12 +14,17 @@ public class Robot2011 extends IterativeRobot {
     private CANJaguar rearLeftJaguar;
     private CANJaguar frontRightJaguar;
     private CANJaguar rearRightJaguar;
+    private Relay speedRelay;
     private int lastSeen;
     private boolean left, right;
+
+    private Gyro gyro;
+    private AxisCamera camera;
 
     private Ultrasonic ultra;
     int sample = 0;
     int sampleCount = 0;
+    int missCount = 0;
     private boolean motorsOn;
     private boolean changingState;
 
@@ -27,17 +33,17 @@ public class Robot2011 extends IterativeRobot {
 
         while (true) {
             try {
-                this.frontLeftJaguar = new CANJaguar(2, CANJaguar.ControlMode.kVoltage);
+                this.frontLeftJaguar = new CANJaguar(2, CANJaguar.ControlMode.kPercentVbus);
                 this.frontLeftJaguar.enableControl();
 
-                this.rearLeftJaguar = new CANJaguar(3, CANJaguar.ControlMode.kSpeed);
-                this.rearLeftJaguar.setSpeedReference(CANJaguar.SpeedReference.kQuadEncoder);
-                this.rearLeftJaguar.setPID(1.5, 0, 0);
-                this.rearLeftJaguar.configEncoderCodesPerRev(2);
-                this.rearLeftJaguar.enableControl();
+                this.rearLeftJaguar = new CANJaguar(3, CANJaguar.ControlMode.kPercentVbus);
+//                this.rearLeftJaguar.setSpeedReference(CANJaguar.SpeedReference.kQuadEncoder);
+//                this.rearLeftJaguar.setPID(1.5, 0, 0);
+//                this.rearLeftJaguar.configEncoderCodesPerRev(2);
+//                this.rearLeftJaguar.enableControl();
                 
-//                this.frontRightJaguar = new CANJaguar(4);
-//                this.rearRightJaguar = new CANJaguar(5);
+                this.frontRightJaguar = new CANJaguar(4, CANJaguar.ControlMode.kPercentVbus);
+                this.rearRightJaguar = new CANJaguar(5, CANJaguar.ControlMode.kPercentVbus);
 
                 break;
             } catch (CANTimeoutException ex) {
@@ -57,6 +63,12 @@ public class Robot2011 extends IterativeRobot {
         this.joystick1 = new Joystick(1);
         this.joystick2 = new Joystick(2);
 
+        this.gyro = new Gyro(2);
+
+        this.speedRelay = new Relay(2);
+
+        camera = AxisCamera.getInstance();
+
         this.ultra = new Ultrasonic(3, 4);
         this.ultra.setAutomaticMode(true);
 
@@ -66,16 +78,18 @@ public class Robot2011 extends IterativeRobot {
     private int count;
     private void driveRobot(double left, double right) throws CANTimeoutException
     {
-        rearLeftJaguar.setX(left * 32767, (byte)1);
-        frontLeftJaguar.setX(rearLeftJaguar.getOutputVoltage(), (byte)1);
-        //frontLeftJaguar.updateSyncGroup((byte)1);
+        rearLeftJaguar.setX(left, (byte)1);
+        frontLeftJaguar.setX(left, (byte)1);
+        rearRightJaguar.setX(-right, (byte)1);
+        frontRightJaguar.setX(-right, (byte)1);
         CANJaguar.updateSyncGroup((byte)1);
 
         if ((count % 10) == 0)
         {
-            System.out.println("output: " + rearLeftJaguar.getOutputVoltage());
-            System.out.println("bus:    " + rearLeftJaguar.getBusVoltage());
-            System.out.println("% vbus: " + rearLeftJaguar.getOutputVoltage() / rearLeftJaguar.getBusVoltage());
+            System.out.println("gyro: " + gyro.getAngle());
+//            System.out.println("output: " + rearLeftJaguar.getOutputVoltage());
+//            System.out.println("bus:    " + rearLeftJaguar.getBusVoltage());
+//            System.out.println("% vbus: " + rearLeftJaguar.getOutputVoltage() / rearLeftJaguar.getBusVoltage());
         }
 
         this.count++;
@@ -85,21 +99,31 @@ public class Robot2011 extends IterativeRobot {
 //            System.out.println("Setting left to " + rearLeftJaguar.getOutputVoltage() + ", " + frontLeftJaguar.getOutputVoltage());
     }
 
-    public void disabledPeriodic() {
+    public void disabledInit() {
+        System.out.println("Resetting gyro.");
+        gyro.reset();
     }
 
-    public static final double AUTO_SPEED = -.45;
-    public static final double TURN_SPEED = -.35;
+    public static final double AUTO_SPEED = -.4;
+    public static final double TURN_SPEED = -.28;
 
     public static final int LEFT = 1;
     public static final int RIGHT = 2;
     public static final int BOTH = 3;
 
     public static final int NUM_SAMPLES = 3;
+    public final int ULTRA_SONIC_THRESHOLD = 6000;
 
     public void autonomousPeriodic() {
-        sample += ultra.getRangeMM();
-        sampleCount++;
+        int tmp = ((int)ultra.getRangeMM());
+        tmp = 3000; //testing
+        if(tmp < ULTRA_SONIC_THRESHOLD){
+            sample += tmp;
+            sampleCount++;
+        }
+        else{
+            missCount++;
+        }
 
         if(sampleCount == NUM_SAMPLES - 1)
         {
@@ -114,6 +138,8 @@ public class Robot2011 extends IterativeRobot {
         {
             sampleCount = 0;
             sample = 0;
+            System.out.println("Miss Count: " + missCount);
+            missCount = 0;
         }
         if(!motorsOn && sampleCount == NUM_SAMPLES - 1){
             try {
@@ -132,43 +158,82 @@ public class Robot2011 extends IterativeRobot {
         }
     }
 
+    public double targetSpeedRight = 0;
+    public double actualSpeedRight = 0;
+    public double rightSpeedChange = 0.1;
+    public double targetSpeedLeft = 0;
+    public double actualSpeedLeft = 0;
+    public double leftSpeedChange = 0.1;
+
     private void lineTracking() throws CANTimeoutException{
-        left = !line1.get();
-        right = !line2.get();
+        left = line1.get();
+        right = line2.get();
 
         if(left && right)
         {
-            driveRobot(AUTO_SPEED, AUTO_SPEED);
+            targetSpeedLeft = AUTO_SPEED;
+            targetSpeedRight = AUTO_SPEED;
             lastSeen = BOTH;
         }
         else if(left)
         {
-            driveRobot(AUTO_SPEED, AUTO_SPEED);
+            //driveRobot(targetSpeedRight, targetSpeedLeft);
+            targetSpeedLeft = AUTO_SPEED;
+            targetSpeedRight = AUTO_SPEED;
             lastSeen = LEFT;
         }
         else if(right)
         {
-            driveRobot(AUTO_SPEED, AUTO_SPEED);
+            //driveRobot(targetSpeedRight, targetSpeedLeft);
+            targetSpeedRight = AUTO_SPEED;
+            targetSpeedLeft = AUTO_SPEED;
             lastSeen = RIGHT;
         }
         else
         {
-            if(lastSeen == LEFT)
-                driveRobot(TURN_SPEED, -TURN_SPEED);
-            else if(lastSeen == RIGHT)
-                driveRobot(-TURN_SPEED, TURN_SPEED);
-            else
+            if(lastSeen == LEFT){
+                targetSpeedLeft = -TURN_SPEED;
+                targetSpeedRight = TURN_SPEED;
+            }
+            else if(lastSeen == RIGHT){
+                targetSpeedRight = -TURN_SPEED;
+                targetSpeedLeft = TURN_SPEED;
+            }
+            else{
                 driveRobot(0, 0);
+            }
         }
+        System.out.print("l: " + targetSpeedLeft + ", " + actualSpeedLeft + ", ");
+        if(targetSpeedLeft > (actualSpeedLeft + leftSpeedChange))
+            targetSpeedLeft += leftSpeedChange;
+        else if(targetSpeedLeft < (actualSpeedLeft - leftSpeedChange))
+            targetSpeedLeft -= leftSpeedChange;
+        System.out.println(targetSpeedLeft);
+
+        actualSpeedLeft = targetSpeedLeft;
+
+        System.out.print("r: " + targetSpeedRight + ", " + actualSpeedRight + ", ");
+        if(targetSpeedRight > actualSpeedRight + rightSpeedChange)
+            targetSpeedRight += rightSpeedChange;
+        else if(targetSpeedRight < actualSpeedRight - rightSpeedChange)
+            targetSpeedRight -= rightSpeedChange;
+        System.out.println(targetSpeedRight);
+
+        actualSpeedRight = targetSpeedRight;
+
+        driveRobot(targetSpeedLeft, targetSpeedRight);
     }
 
     public void teleopPeriodic() {
         try {
             sample++;
-            if (sample == 10) {
-                System.out.println("$" + ultra.getRangeMM() + "^");
+            if (sample == NUM_SAMPLES) {
+                //System.out.println("$" + ultra.getRangeMM() + "^");
                 sample = 0;
+                missCount = 0;
             }
+            if(sample > ULTRA_SONIC_THRESHOLD)
+                missCount++;
             left = !line1.get();
             right = !line2.get();
             if (!(joystick1.getTrigger() || joystick2.getTrigger())) {
@@ -181,6 +246,8 @@ public class Robot2011 extends IterativeRobot {
         } catch (CANTimeoutException ex) {
             System.out.println("CAN timeout");
         }
+
+        speedRelay.set(Relay.Value.kReverse);
     }
 
     private void printLineState(boolean left, boolean right)
@@ -208,7 +275,6 @@ public class Robot2011 extends IterativeRobot {
             {
                 System.out.println("right seen last");
             }
-
         }
     }
 }
