@@ -19,13 +19,14 @@ public class Robot2011 extends IterativeRobot {
     private boolean left, right;
 
     private Gyro gyro;
+    private ADXL345_I2C accel;
     private AxisCamera camera;
 
     private Ultrasonic ultra;
     int sample = 0;
     int sampleCount = 0;
     int missCount = 0;
-    private boolean motorsOn;
+    private boolean motorsOn = true;
     private boolean changingState;
 
     public void robotInit() {
@@ -64,10 +65,11 @@ public class Robot2011 extends IterativeRobot {
         this.joystick2 = new Joystick(2);
 
         this.gyro = new Gyro(2);
+        this.accel = new ADXL345_I2C(4, ADXL345_I2C.DataFormat_Range.k8G);
 
         this.speedRelay = new Relay(2);
 
-        camera = AxisCamera.getInstance();
+//        camera = AxisCamera.getInstance();
 
         this.ultra = new Ultrasonic(3, 4);
         this.ultra.setAutomaticMode(true);
@@ -86,7 +88,8 @@ public class Robot2011 extends IterativeRobot {
 
         if ((count % 10) == 0)
         {
-            System.out.println("gyro: " + gyro.getAngle());
+            System.out.println("accel: " + accel.getAcceleration(ADXL345_I2C.Axes.kX));
+//            System.out.println("gyro: " + gyro.getAngle());
 //            System.out.println("output: " + rearLeftJaguar.getOutputVoltage());
 //            System.out.println("bus:    " + rearLeftJaguar.getBusVoltage());
 //            System.out.println("% vbus: " + rearLeftJaguar.getOutputVoltage() / rearLeftJaguar.getBusVoltage());
@@ -113,10 +116,11 @@ public class Robot2011 extends IterativeRobot {
 
     public static final int NUM_SAMPLES = 3;
     public final int ULTRA_SONIC_THRESHOLD = 6000;
+    int tmp;
 
     public void autonomousPeriodic() {
-        int tmp = ((int)ultra.getRangeMM());
-        tmp = 3000; //testing
+//        tmp = ((int)ultra.getRangeMM());
+        tmp = 8000; //testing
         if(tmp < ULTRA_SONIC_THRESHOLD){
             sample += tmp;
             sampleCount++;
@@ -160,10 +164,10 @@ public class Robot2011 extends IterativeRobot {
 
     public double targetSpeedRight = 0;
     public double actualSpeedRight = 0;
-    public double rightSpeedChange = 0.1;
+    public double rightSpeedChange = 0.07;
     public double targetSpeedLeft = 0;
     public double actualSpeedLeft = 0;
-    public double leftSpeedChange = 0.1;
+    public double leftSpeedChange = 0.07;
 
     private void lineTracking() throws CANTimeoutException{
         left = line1.get();
@@ -203,20 +207,21 @@ public class Robot2011 extends IterativeRobot {
                 driveRobot(0, 0);
             }
         }
+        
         System.out.print("l: " + targetSpeedLeft + ", " + actualSpeedLeft + ", ");
         if(targetSpeedLeft > (actualSpeedLeft + leftSpeedChange))
-            targetSpeedLeft += leftSpeedChange;
+            targetSpeedLeft = actualSpeedLeft + leftSpeedChange;
         else if(targetSpeedLeft < (actualSpeedLeft - leftSpeedChange))
-            targetSpeedLeft -= leftSpeedChange;
+            targetSpeedLeft = actualSpeedLeft - leftSpeedChange;
         System.out.println(targetSpeedLeft);
 
         actualSpeedLeft = targetSpeedLeft;
 
         System.out.print("r: " + targetSpeedRight + ", " + actualSpeedRight + ", ");
         if(targetSpeedRight > actualSpeedRight + rightSpeedChange)
-            targetSpeedRight += rightSpeedChange;
+            targetSpeedRight = actualSpeedRight + rightSpeedChange;
         else if(targetSpeedRight < actualSpeedRight - rightSpeedChange)
-            targetSpeedRight -= rightSpeedChange;
+            targetSpeedRight = actualSpeedRight - rightSpeedChange;
         System.out.println(targetSpeedRight);
 
         actualSpeedRight = targetSpeedRight;
