@@ -14,6 +14,8 @@ public class Robot2011 extends IterativeRobot {
     private CANJaguar rearLeftJaguar;
     private CANJaguar frontRightJaguar;
     private CANJaguar rearRightJaguar;
+    private AnalogChannel pot; //port 5
+    private DigitalInput actuator; //port 7
     private Relay speedRelay;
     private int lastSeen;
     private boolean left, right;
@@ -28,6 +30,9 @@ public class Robot2011 extends IterativeRobot {
     int missCount = 0;
     private boolean motorsOn = true;
     private boolean changingState;
+
+    PIDController gyroPID;
+    GyroPIDOutput gyroPIDOutput;
 
     public void robotInit() {
         System.out.println("Beginning robot initialization");
@@ -64,7 +69,19 @@ public class Robot2011 extends IterativeRobot {
         this.joystick1 = new Joystick(1);
         this.joystick2 = new Joystick(2);
 
+        this.pot = new AnalogChannel(5);
+        this.actuator = new DigitalInput(7);
+
         this.gyro = new Gyro(2);
+
+        gyroPIDOutput = new GyroPIDOutput();
+        gyroPID = new PIDController(.05, 0, 0, gyro, gyroPIDOutput);
+        gyroPID.setContinuous();
+        gyroPID.setOutputRange(-.25, .25);
+        gyroPID.setTolerance(20);
+
+        
+
         this.accel = new ADXL345_I2C(4, ADXL345_I2C.DataFormat_Range.k8G);
 
         this.speedRelay = new Relay(2);
@@ -88,7 +105,6 @@ public class Robot2011 extends IterativeRobot {
 
         if ((count % 10) == 0)
         {
-            System.out.println("accel: " + accel.getAcceleration(ADXL345_I2C.Axes.kX));
 //            System.out.println("gyro: " + gyro.getAngle());
 //            System.out.println("output: " + rearLeftJaguar.getOutputVoltage());
 //            System.out.println("bus:    " + rearLeftJaguar.getBusVoltage());
@@ -105,9 +121,10 @@ public class Robot2011 extends IterativeRobot {
     public void disabledInit() {
         System.out.println("Resetting gyro.");
         gyro.reset();
+        gyroPID.disable();
     }
 
-    public static final double AUTO_SPEED = -.4;
+    public static final double AUTO_SPEED = -.35;
     public static final double TURN_SPEED = -.28;
 
     public static final int LEFT = 1;
@@ -117,6 +134,11 @@ public class Robot2011 extends IterativeRobot {
     public static final int NUM_SAMPLES = 3;
     public final int ULTRA_SONIC_THRESHOLD = 6000;
     int tmp;
+
+    public void autonomousInit()
+    {
+        gyroPID.enable();
+    }
 
     public void autonomousPeriodic() {
 //        tmp = ((int)ultra.getRangeMM());
@@ -142,7 +164,7 @@ public class Robot2011 extends IterativeRobot {
         {
             sampleCount = 0;
             sample = 0;
-            System.out.println("Miss Count: " + missCount);
+//            System.out.println("Miss Count: " + missCount);
             missCount = 0;
         }
         if(!motorsOn && sampleCount == NUM_SAMPLES - 1){
@@ -164,20 +186,25 @@ public class Robot2011 extends IterativeRobot {
 
     public double targetSpeedRight = 0;
     public double actualSpeedRight = 0;
-    public double rightSpeedChange = 0.07;
+    public final double RIGHT_SPEED_CHANGE = 0.5;
     public double targetSpeedLeft = 0;
     public double actualSpeedLeft = 0;
-    public double leftSpeedChange = 0.07;
+    public final double LEFT_SPEED_CHANGE = 0.5;
+
+    private int relAngle = 0;   // The relative angle we want to travel (since we last saw the line)
+//    private double offsAngle = 0;  // The angle the gyro was at when we last saw the line
 
     private void lineTracking() throws CANTimeoutException{
-        left = line1.get();
-        right = line2.get();
+        left = !line1.get();
+        right = !line2.get();
 
         if(left && right)
         {
             targetSpeedLeft = AUTO_SPEED;
             targetSpeedRight = AUTO_SPEED;
             lastSeen = BOTH;
+            relAngle = 0;
+            gyro.reset();
         }
         else if(left)
         {
@@ -185,6 +212,8 @@ public class Robot2011 extends IterativeRobot {
             targetSpeedLeft = AUTO_SPEED;
             targetSpeedRight = AUTO_SPEED;
             lastSeen = LEFT;
+            relAngle = 0;
+            gyro.reset();
         }
         else if(right)
         {
@@ -192,41 +221,59 @@ public class Robot2011 extends IterativeRobot {
             targetSpeedRight = AUTO_SPEED;
             targetSpeedLeft = AUTO_SPEED;
             lastSeen = RIGHT;
+            relAngle = 0;
+            gyro.reset();
         }
         else
         {
             if(lastSeen == LEFT){
                 targetSpeedLeft = -TURN_SPEED;
                 targetSpeedRight = TURN_SPEED;
+                relAngle = -30;
             }
             else if(lastSeen == RIGHT){
                 targetSpeedRight = -TURN_SPEED;
                 targetSpeedLeft = TURN_SPEED;
+                relAngle = 30;
             }
             else{
-                driveRobot(0, 0);
+//                driveRobot(0, 0);
+                targetSpeedLeft = 0;
+                targetSpeedRight = 0;
+                relAngle = 30;
             }
         }
-        
-        System.out.print("l: " + targetSpeedLeft + ", " + actualSpeedLeft + ", ");
-        if(targetSpeedLeft > (actualSpeedLeft + leftSpeedChange))
-            targetSpeedLeft = actualSpeedLeft + leftSpeedChange;
-        else if(targetSpeedLeft < (actualSpeedLeft - leftSpeedChange))
-            targetSpeedLeft = actualSpeedLeft - leftSpeedChange;
-        System.out.println(targetSpeedLeft);
 
-        actualSpeedLeft = targetSpeedLeft;
+       gyroPID.setSetpoint(relAngle);
+       if(relAngle == 0)
+           driveRobot(AUTO_SPEED - gyroPIDOutput.getValue(), AUTO_SPEED + gyroPIDOutput.getValue());
+       else
+           driveRobot(TURN_SPEED - gyroPIDOutput.getValue()/2, TURN_SPEED + gyroPIDOutput.getValue()/2);
 
-        System.out.print("r: " + targetSpeedRight + ", " + actualSpeedRight + ", ");
-        if(targetSpeedRight > actualSpeedRight + rightSpeedChange)
-            targetSpeedRight = actualSpeedRight + rightSpeedChange;
-        else if(targetSpeedRight < actualSpeedRight - rightSpeedChange)
-            targetSpeedRight = actualSpeedRight - rightSpeedChange;
-        System.out.println(targetSpeedRight);
+       System.out.println("output: (" + gyroPIDOutput.getValue() + ")");
 
-        actualSpeedRight = targetSpeedRight;
+//        if(relAngle == 0)
+//        {
+//            System.out.print("Going straight: ");
+//            if(gyroPID.onTarget())
+//            {
+//                System.out.println("on target");
+//                driveRobot(AUTO_SPEED, AUTO_SPEED);
+//            }
+//            else
+//            {
+//                System.out.println("turning (" + gyroPIDOutput.getValue() + ")");
+//                driveRobot(AUTO_SPEED - gyroPIDOutput.getValue(), AUTO_SPEED + gyroPIDOutput.getValue());
+//            }
+//        }
+//        else
+//        {
+//           driveRobot(0, 0);
+//        }
 
-        driveRobot(targetSpeedLeft, targetSpeedRight);
+        System.out.println("pid:  " + gyroPID.getSetpoint() + ", " + gyroPID.getError());
+        System.out.println("gyro: " + gyro.getAngle() + "\n");
+        //driveRobot(targetSpeedLeft, targetSpeedRight);
     }
 
     public void teleopPeriodic() {
@@ -251,6 +298,9 @@ public class Robot2011 extends IterativeRobot {
         } catch (CANTimeoutException ex) {
             System.out.println("CAN timeout");
         }
+
+        System.out.println("accel: " + accel.getAcceleration(ADXL345_I2C.Axes.kX));
+//        System.out.println("Pot: " + pot.getAverageValue() + " Switch: " + this.actuator.get());
 
         speedRelay.set(Relay.Value.kReverse);
     }
