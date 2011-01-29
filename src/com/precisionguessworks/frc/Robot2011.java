@@ -75,10 +75,10 @@ public class Robot2011 extends IterativeRobot {
         this.gyro = new Gyro(2);
 
         gyroPIDOutput = new GyroPIDOutput();
-        gyroPID = new PIDController(.05, 0, 0, gyro, gyroPIDOutput);
+        gyroPID = new PIDController(.015, 0.01, .06, gyro, gyroPIDOutput);
         gyroPID.setContinuous();
-        gyroPID.setOutputRange(-.25, .25);
-        gyroPID.setTolerance(20);
+        gyroPID.setOutputRange(-.32, .32);
+        gyroPID.setTolerance(5);
 
         
 
@@ -184,12 +184,6 @@ public class Robot2011 extends IterativeRobot {
         }
     }
 
-    public double targetSpeedRight = 0;
-    public double actualSpeedRight = 0;
-    public final double RIGHT_SPEED_CHANGE = 0.5;
-    public double targetSpeedLeft = 0;
-    public double actualSpeedLeft = 0;
-    public final double LEFT_SPEED_CHANGE = 0.5;
 
     private int relAngle = 0;   // The relative angle we want to travel (since we last saw the line)
 //    private double offsAngle = 0;  // The angle the gyro was at when we last saw the line
@@ -200,26 +194,18 @@ public class Robot2011 extends IterativeRobot {
 
         if(left && right)
         {
-            targetSpeedLeft = AUTO_SPEED;
-            targetSpeedRight = AUTO_SPEED;
             lastSeen = BOTH;
             relAngle = 0;
             gyro.reset();
         }
         else if(left)
         {
-            //driveRobot(targetSpeedRight, targetSpeedLeft);
-            targetSpeedLeft = AUTO_SPEED;
-            targetSpeedRight = AUTO_SPEED;
             lastSeen = LEFT;
             relAngle = 0;
             gyro.reset();
         }
         else if(right)
         {
-            //driveRobot(targetSpeedRight, targetSpeedLeft);
-            targetSpeedRight = AUTO_SPEED;
-            targetSpeedLeft = AUTO_SPEED;
             lastSeen = RIGHT;
             relAngle = 0;
             gyro.reset();
@@ -227,49 +213,32 @@ public class Robot2011 extends IterativeRobot {
         else
         {
             if(lastSeen == LEFT){
-                targetSpeedLeft = -TURN_SPEED;
-                targetSpeedRight = TURN_SPEED;
-                relAngle = -30;
+                if(gyroPID.onTarget() && relAngle == -45)
+                    relAngle = 45;
+                else
+                    relAngle = -45;
             }
             else if(lastSeen == RIGHT){
-                targetSpeedRight = -TURN_SPEED;
-                targetSpeedLeft = TURN_SPEED;
-                relAngle = 30;
+                if(gyroPID.onTarget() && relAngle == 45)
+                    relAngle = -45;
+                else
+                    relAngle = 45;
             }
             else{
-//                driveRobot(0, 0);
-                targetSpeedLeft = 0;
-                targetSpeedRight = 0;
-                relAngle = 30;
+                if(gyroPID.onTarget() && relAngle == 45)
+                    relAngle = -45;
+                else
+                    relAngle = 45;
             }
         }
 
        gyroPID.setSetpoint(relAngle);
        if(relAngle == 0)
-           driveRobot(AUTO_SPEED - gyroPIDOutput.getValue(), AUTO_SPEED + gyroPIDOutput.getValue());
+           driveRobot(AUTO_SPEED + gyroPIDOutput.getValue(), AUTO_SPEED - gyroPIDOutput.getValue());
        else
-           driveRobot(TURN_SPEED - gyroPIDOutput.getValue()/2, TURN_SPEED + gyroPIDOutput.getValue()/2);
+           driveRobot(gyroPIDOutput.getValue(), -gyroPIDOutput.getValue());
 
        System.out.println("output: (" + gyroPIDOutput.getValue() + ")");
-
-//        if(relAngle == 0)
-//        {
-//            System.out.print("Going straight: ");
-//            if(gyroPID.onTarget())
-//            {
-//                System.out.println("on target");
-//                driveRobot(AUTO_SPEED, AUTO_SPEED);
-//            }
-//            else
-//            {
-//                System.out.println("turning (" + gyroPIDOutput.getValue() + ")");
-//                driveRobot(AUTO_SPEED - gyroPIDOutput.getValue(), AUTO_SPEED + gyroPIDOutput.getValue());
-//            }
-//        }
-//        else
-//        {
-//           driveRobot(0, 0);
-//        }
 
         System.out.println("pid:  " + gyroPID.getSetpoint() + ", " + gyroPID.getError());
         System.out.println("gyro: " + gyro.getAngle() + "\n");
