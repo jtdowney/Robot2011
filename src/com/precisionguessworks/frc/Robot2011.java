@@ -5,8 +5,7 @@ import edu.wpi.first.wpilibj.can.CANTimeoutException;
 
 public class Robot2011 extends IterativeRobot {
     // inputs
-    private Joystick leftJoystick;
-    private Joystick rightJoystick;
+    private LogitechDualActionGamepad leftGamepad;
 
     // subsystems
     private Claw claw;
@@ -17,25 +16,24 @@ public class Robot2011 extends IterativeRobot {
     public void robotInit() {
         System.out.println("Initializing robot");
 
-        this.leftJoystick = new Joystick(1);
-        this.rightJoystick = new Joystick(2);
+        this.leftGamepad = new LogitechDualActionGamepad(1);
 
         CANJaguar frontLeftMotor;
         CANJaguar rearLeftMotor;
         CANJaguar frontRightMotor;
         CANJaguar rearRightMotor;
-        CANJaguar topArmMotor;
-        CANJaguar bottomArmMotor;
+//        CANJaguar topArmMotor;
+//        CANJaguar bottomArmMotor;
 
         System.out.println("Initializing CAN bus");
         while (true) {
             try {
-                frontLeftMotor = new CANJaguar(2);
-                rearLeftMotor = new CANJaguar(3);
-                frontRightMotor = new CANJaguar(4);
-                rearRightMotor = new CANJaguar(5);
-                topArmMotor = new CANJaguar(6);
-                bottomArmMotor = new CANJaguar(7);
+                frontLeftMotor = new CANJaguar(1);
+                rearLeftMotor = new CANJaguar(2);
+                frontRightMotor = new CANJaguar(3);
+                rearRightMotor = new CANJaguar(4);
+//                topArmMotor = new CANJaguar(6);
+//                bottomArmMotor = new CANJaguar(7);
 
                 break;
             } catch (CANTimeoutException exception) {
@@ -45,9 +43,9 @@ public class Robot2011 extends IterativeRobot {
         System.out.println("CAN bus initialized");
 
         this.claw = new Claw(new DigitalInput(6), new Relay(1), new Relay(2));
-        this.arm = new Arm(new AnalogChannel(3), topArmMotor, bottomArmMotor, this.tower);
+//        this.arm = new Arm(new AnalogChannel(3), topArmMotor, bottomArmMotor, this.tower);
         this.tower = new Tower(new Solenoid(1), new Solenoid(2));
-        this.drive = new Drive(frontLeftMotor, rearLeftMotor, frontRightMotor, rearRightMotor, new Solenoid(1));
+        this.drive = new Drive(frontLeftMotor, rearLeftMotor, frontRightMotor, rearRightMotor, new Solenoid(3));
 
         // turn on photoswitches
         new Solenoid(8).set(true);
@@ -88,15 +86,15 @@ public class Robot2011 extends IterativeRobot {
         this.updateDashboard();
 
         this.controlClaw();
-        this.drive.tankDrive(this.leftJoystick, this.rightJoystick);
+        this.drive.tankDrive(this.leftGamepad);
     }
     
     private void controlClaw() {
-        if (this.leftJoystick.getRawButton(11) && this.leftJoystick.getRawButton(10)) {
+        if (this.leftGamepad.getNumberedButton(3)) {
             this.claw.pushOut();
-        } else if (this.leftJoystick.getRawButton(11)) {
+        } else if (this.leftGamepad.getNumberedButton(1)) {
             this.claw.turnUp();
-        } else if (this.leftJoystick.getRawButton(10)) {
+        } else if (this.leftGamepad.getNumberedButton(2)) {
             this.claw.turnDown();
         } else if (this.claw.isHoldingTube()) {
             this.claw.stop();
