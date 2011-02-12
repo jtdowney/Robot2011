@@ -6,6 +6,7 @@ import edu.wpi.first.wpilibj.can.CANTimeoutException;
 public class Robot2011 extends IterativeRobot {
     // inputs
     private LogitechDualActionGamepad leftGamepad;
+    private LogitechDualActionGamepad rightGamepad;
 
     // subsystems
     private Claw claw;
@@ -17,6 +18,7 @@ public class Robot2011 extends IterativeRobot {
         System.out.println("Initializing robot");
 
         this.leftGamepad = new LogitechDualActionGamepad(1);
+        this.rightGamepad = new LogitechDualActionGamepad(2);
 
         CANJaguar frontLeftMotor;
         CANJaguar rearLeftMotor;
@@ -85,16 +87,27 @@ public class Robot2011 extends IterativeRobot {
     public void teleopPeriodic() {
         this.updateDashboard();
 
+        this.controlDrive();
+        this.controlArm();
         this.controlClaw();
-        this.drive.tankDrive(this.leftGamepad);
+    }
+
+    private void controlDrive() {
+        this.drive.tankDrive(this.leftGamepad.getLeftY(), this.leftGamepad.getRightY());
+    }
+
+    private void controlArm() {
+        if (this.rightGamepad.getNumberedButton(7)) {
+            this.arm.manualDrive(this.rightGamepad.getLeftY());
+        }
     }
     
     private void controlClaw() {
-        if (this.leftGamepad.getNumberedButton(3)) {
+        if (this.rightGamepad.getNumberedButton(3)) {
             this.claw.pushOut();
-        } else if (this.leftGamepad.getNumberedButton(1)) {
+        } else if (this.rightGamepad.getNumberedButton(1)) {
             this.claw.turnUp();
-        } else if (this.leftGamepad.getNumberedButton(2)) {
+        } else if (this.rightGamepad.getNumberedButton(2)) {
             this.claw.turnDown();
         } else if (this.claw.isHoldingTube()) {
             this.claw.stop();
