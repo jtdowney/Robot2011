@@ -3,7 +3,7 @@ package com.precisionguessworks.frc;
 import edu.wpi.first.wpilibj.*;
 import edu.wpi.first.wpilibj.can.CANTimeoutException;
 
-public class Robot2011 extends IterativeRobot {
+public class Robot extends IterativeRobot {
     // inputs
     private LogitechDualActionGamepad leftGamepad;
     private LogitechDualActionGamepad rightGamepad;

@@ -1,6 +1,6 @@
 MIDlet-Name: Robot2011
 MIDlet-Version: 1.0.0
 MIDlet-Vendor: FIRST
-MIDlet-1: Robot2011, , com.precisionguessworks.frc.Robot2011
+MIDlet-1: Robot, , com.precisionguessworks.frc.Robot
 MicroEdition-Profile: IMP-1.0
 MicroEdition-Configuration: CLDC-1.1
