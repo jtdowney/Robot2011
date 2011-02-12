@@ -1,26 +1,30 @@
 package com.precisionguessworks.frc;
 
-import edu.wpi.first.wpilibj.GenericHID;
-import edu.wpi.first.wpilibj.RobotDrive;
+import edu.wpi.first.wpilibj.CANJaguar;
 import edu.wpi.first.wpilibj.Solenoid;
-import edu.wpi.first.wpilibj.SpeedController;
+import edu.wpi.first.wpilibj.can.CANTimeoutException;
 
 public class Drive {
     private static final double kInputDapen = 1.0;
 
-    private final RobotDrive drive;
-    private final Solenoid shifterSolenoid;
-
     private int inverseFactor = 1;
+    private final CANJaguar frontLeftMotor;
+    private final CANJaguar rearLeftMotor;
+    private final CANJaguar frontRightMotor;
+    private final CANJaguar rearRightMotor;
+    private final Solenoid shifterSolenoid;
     
     public Drive(
-            SpeedController frontLeftMotor,
-            SpeedController rearLeftMotor,
-            SpeedController frontRightMotor,
-            SpeedController rearRightMotor,
+            CANJaguar frontLeftMotor,
+            CANJaguar rearLeftMotor,
+            CANJaguar frontRightMotor,
+            CANJaguar rearRightMotor,
             Solenoid shifterSolenoid) {
-        this.drive = new RobotDrive(frontLeftMotor, rearLeftMotor, frontRightMotor, rearRightMotor);
         this.shifterSolenoid = shifterSolenoid;
+        this.frontLeftMotor = frontLeftMotor;
+        this.rearLeftMotor = rearLeftMotor;
+        this.frontRightMotor = frontRightMotor;
+        this.rearRightMotor = rearRightMotor;
     }
 
     public void invert() {
@@ -36,20 +40,30 @@ public class Drive {
     }
 
     public void tankDrive(double left, double right) {
-        this.drive.tankDrive(left, -right);
+        left = Drive.limit(left);
+        right = -Drive.limit(right);
+
+        byte syncGroup = (byte) 128;
+
+        try {
+            this.frontLeftMotor.setX(left, syncGroup);
+            this.rearLeftMotor.setX(left, syncGroup);
+            this.frontRightMotor.setX(right, syncGroup);
+            this.rearRightMotor.setX(right, syncGroup);
+            
+            CANJaguar.updateSyncGroup(syncGroup);
+        } catch (CANTimeoutException ex) {
+        }
     }
 
-    public void tankDrive(final GenericHID leftJoystick, final GenericHID rightJoystick) {
-        double left = leftJoystick.getY() * kInputDapen;
-        double right = rightJoystick.getY() * kInputDapen;
-
-        this.tankDrive(left, right);
-    }
-
-    public void tankDrive(final LogitechDualActionGamepad gamepad) {
-        double left = gamepad.getLeftY() * kInputDapen;
-        double right = gamepad.getRightY() * kInputDapen;
-
-        this.tankDrive(left, right);
+    protected static double limit(double num) {
+        if (num > 1.0) {
+            return 1.0;
+        }
+        if (num < -1.0) {
+            return -1.0;
+        }
+        
+        return num;
     }
 }
