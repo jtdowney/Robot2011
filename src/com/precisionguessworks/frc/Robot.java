@@ -2,10 +2,15 @@ package com.precisionguessworks.frc;
 
 import edu.wpi.first.wpilibj.*;
 import edu.wpi.first.wpilibj.can.CANTimeoutException;
+import java.io.DataOutputStream;
+import com.sun.squawk.microedition.io.FileConnection;
+import java.io.PrintStream;
+import javax.microedition.io.Connector;
 
 public class Robot extends IterativeRobot {
     // inputs
     private LogitechDualActionGamepad leftGamepad;
+    private AnalogChannel potChannel;
     private LogitechDualActionGamepad rightGamepad;
 
     // subsystems
@@ -14,8 +19,25 @@ public class Robot extends IterativeRobot {
     private Arm arm;
     private Drive drive;
 
+    DataOutputStream fileOut;
+    FileConnection fileConnection;
+    PrintStream out;
+
     public void robotInit() {
         System.out.println("Initializing robot");
+
+        DataOutputStream out;
+        FileConnection fileConnection;
+
+        try{
+            fileConnection = (FileConnection) Connector.open("file:///output.txt",
+                Connector.WRITE);
+            fileConnection.create();
+            fileOut = fileConnection.openDataOutputStream();
+            out = new PrintStream(fileOut);
+        }catch (Exception e){
+        }
+
 
         this.leftGamepad = new LogitechDualActionGamepad(1);
         this.rightGamepad = new LogitechDualActionGamepad(2);
@@ -24,8 +46,8 @@ public class Robot extends IterativeRobot {
         CANJaguar rearLeftMotor;
         CANJaguar frontRightMotor;
         CANJaguar rearRightMotor;
-//        CANJaguar topArmMotor;
-//        CANJaguar bottomArmMotor;
+        CANJaguar topArmMotor;
+        CANJaguar bottomArmMotor;
 
         System.out.println("Initializing CAN bus");
         while (true) {
@@ -34,8 +56,8 @@ public class Robot extends IterativeRobot {
                 rearLeftMotor = new CANJaguar(2);
                 frontRightMotor = new CANJaguar(3);
                 rearRightMotor = new CANJaguar(4);
-//                topArmMotor = new CANJaguar(6);
-//                bottomArmMotor = new CANJaguar(7);
+                topArmMotor = new CANJaguar(5);
+                bottomArmMotor = new CANJaguar(6);
 
                 break;
             } catch (CANTimeoutException exception) {
@@ -45,7 +67,8 @@ public class Robot extends IterativeRobot {
         System.out.println("CAN bus initialized");
 
         this.claw = new Claw(new DigitalInput(6), new Relay(1), new Relay(2));
-//        this.arm = new Arm(new AnalogChannel(3), topArmMotor, bottomArmMotor, this.tower);
+        potChannel = new AnalogChannel(3);
+        this.arm = new Arm( potChannel, topArmMotor, bottomArmMotor, this.tower);
         this.tower = new Tower(new Solenoid(1), new Solenoid(2));
         this.drive = new Drive(frontLeftMotor, rearLeftMotor, frontRightMotor, rearRightMotor, new Solenoid(3));
 

@@ -5,6 +5,7 @@ import edu.wpi.first.wpilibj.PIDController;
 import edu.wpi.first.wpilibj.PIDOutput;
 import edu.wpi.first.wpilibj.PIDSource;
 import edu.wpi.first.wpilibj.can.CANTimeoutException;
+import java.util.TimerTask;
 
 public class Arm {
     private static final double P = 1.0;
@@ -50,6 +51,7 @@ public class Arm {
         return num;
     }
 
+
     public class ArmOutput implements PIDOutput {
         private CANJaguar topMotor;
         private CANJaguar bottomMotor;
@@ -76,6 +78,11 @@ public class Arm {
 
         public void pidWrite(double output) {
             this.drive(output);
+
+            // Output CSV-style values for graphing/tuning PID
+            // arm, setpoint, actual
+            System.out.println("arm, " + controller.getSetpoint()
+                    + ", ");
         }
     }
 }
