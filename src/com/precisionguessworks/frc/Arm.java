@@ -5,12 +5,11 @@ import edu.wpi.first.wpilibj.PIDController;
 import edu.wpi.first.wpilibj.PIDOutput;
 import edu.wpi.first.wpilibj.PIDSource;
 import edu.wpi.first.wpilibj.can.CANTimeoutException;
-import java.util.TimerTask;
 
 public class Arm {
-    private static final double P = 1.0;
-    private static final double I = 0.0;
-    private static final double D = 0.0;
+    public static final double kP = 0.001;
+    public static final double kI = 0.0;
+    public static final double kD = 0.0;
 
     private final ArmOutput armOutput;
     private final PIDController controller;
@@ -18,12 +17,16 @@ public class Arm {
 
     public Arm(PIDSource armPotentiometer, CANJaguar topMotor, CANJaguar bottomMotor, Tower tower) {
         this.armOutput = new ArmOutput(topMotor, bottomMotor);
-        this.controller = new PIDController(P, I, D, armPotentiometer, armOutput);
+        this.controller = new PIDController(kP, kI, kD, armPotentiometer, armOutput);
+        this.controller.setOutputRange(-0.5, 0.5);
+        this.controller.setInputRange(0, 1000);
+
         this.tower = tower;
     }
 
     public void setPosition(int position) {
         this.controller.setSetpoint(position);
+        this.controller.enable();
     }
 
     public void setFloorPosition() {
@@ -51,7 +54,6 @@ public class Arm {
         return num;
     }
 
-
     public class ArmOutput implements PIDOutput {
         private CANJaguar topMotor;
         private CANJaguar bottomMotor;
@@ -78,11 +80,6 @@ public class Arm {
 
         public void pidWrite(double output) {
             this.drive(output);
-
-            // Output CSV-style values for graphing/tuning PID
-            // arm, setpoint, actual
-            System.out.println("arm, " + controller.getSetpoint()
-                    + ", ");
         }
     }
 }
