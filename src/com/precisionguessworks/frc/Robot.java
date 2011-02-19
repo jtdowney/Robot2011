@@ -124,7 +124,8 @@ public class Robot extends IterativeRobot {
                     Robot.paddingString(minute, 2, '0', true) +
                     Robot.paddingString(second, 2, '0', true);
 
-            name += "_" + Arm.kP + "_" + Arm.kI + "_" + Arm.kD + ".csv";
+//            name += "_" + Arm.kP + "_" + Arm.kI + "_" + Arm.kD + ".csv";
+            name += ".csv";
 
             FileConnection connection = (FileConnection) Connector.open("file:///" + name, Connector.WRITE);
             connection.create();
@@ -155,6 +156,36 @@ public class Robot extends IterativeRobot {
 
     // Teleop mode
     public void teleopInit() {
+                try {
+            Calendar cal = Calendar.getInstance();
+
+            String year = new Integer(cal.get(Calendar.YEAR)).toString();
+            String month = new Integer(cal.get(Calendar.MONTH) + 1).toString();
+            String date = new Integer(cal.get(Calendar.DATE)).toString();
+            String hour = new Integer(cal.get(Calendar.HOUR_OF_DAY)).toString();
+            String minute = new Integer(cal.get(Calendar.MINUTE)).toString();
+            String second = new Integer(cal.get(Calendar.SECOND)).toString();
+            String name =
+                    year +
+                    Robot.paddingString(month, 2, '0', true) +
+                    Robot.paddingString(date, 2, '0', true) + "-" +
+                    Robot.paddingString(hour, 2, '0', true) +
+                    Robot.paddingString(minute, 2, '0', true) +
+                    Robot.paddingString(second, 2, '0', true);
+
+            name += "_" + Arm.kP + "_" + Arm.kI + "_" + Arm.kD + ".csv";
+
+            FileConnection connection = (FileConnection) Connector.open("file:///" + name, Connector.WRITE);
+            connection.create();
+
+            this.file = new PrintStream(connection.openDataOutputStream());
+        } catch (Exception e) {}
+
+        this.file.println("time,setpoint,value,drive");
+        this.counter = 0;
+//        this.setpoint = 300;
+
+        this.arm.setPosition(this.setpoint);
     }
 
     public void teleopContinuous() {
@@ -163,9 +194,16 @@ public class Robot extends IterativeRobot {
     public void teleopPeriodic() {
         this.updateDashboard();
 
-        this.controlDrive();
+//        this.controlDrive();
         this.controlArm();
         this.controlClaw();
+//        System.out.println(pot.getValue());
+        try {
+            final String output = (this.counter++) + "," + this.setpoint + "," + this.pot.getValue() + "," + this.topArmMotor.getX();
+
+            this.file.println(output);
+            System.out.println(output);
+        } catch (CANTimeoutException ex) {}
     }
 
     private void controlDrive() {
@@ -173,9 +211,24 @@ public class Robot extends IterativeRobot {
     }
 
     private void controlArm() {
-        if (this.rightGamepad.getNumberedButton(7)) {
-            this.arm.manualDrive(this.rightGamepad.getLeftY() * 0.5);
+        if(this.rightGamepad.getNumberedButton(6))
+        {
+            this.setpoint = 300;
+            this.arm.setPosition(300);
         }
+        else if(this.rightGamepad.getNumberedButton(8))
+        {
+            this.setpoint = 400;
+            this.arm.setPosition(400);
+        }
+        else if(this.rightGamepad.getNumberedButton(5))
+        {
+            this.setpoint = 500;
+            this.arm.setPosition(500);
+        }
+//        if (this.rightGamepad.getNumberedButton(7)) {
+//            this.arm.manualDrive(this.rightGamepad.getLeftY() * 0.5);
+//        }
     }
     
     private void controlClaw() {

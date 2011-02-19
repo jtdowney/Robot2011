@@ -7,25 +7,52 @@ import edu.wpi.first.wpilibj.PIDSource;
 import edu.wpi.first.wpilibj.can.CANTimeoutException;
 
 public class Arm {
-    public static final double kP = 0.001;
-    public static final double kI = 0.0;
-    public static final double kD = 0.0;
+    public static final double kPUp = 0.004;
+    public static final double kIUp = 0.000085;
+    public static final double kDUp = 0.003;
+
+    public static final double kPDown = 0.0015;
+    public static final double kIDown = 0.000085;
+    public static final double kDDown = 0.003;
+
+    public static double kP = 0;
+    public static double kI = 0;
+    public static double kD = 0;
 
     private final ArmOutput armOutput;
     private final PIDController controller;
     private final Tower tower;
 
+    private int lastPosition = 0;
+
     public Arm(PIDSource armPotentiometer, CANJaguar topMotor, CANJaguar bottomMotor, Tower tower) {
         this.armOutput = new ArmOutput(topMotor, bottomMotor);
-        this.controller = new PIDController(kP, kI, kD, armPotentiometer, armOutput);
-        this.controller.setOutputRange(-0.5, 0.5);
-        this.controller.setInputRange(0, 1000);
+        this.controller = new PIDController(kPUp, kIUp, kDUp, armPotentiometer, armOutput);
+        this.controller.setOutputRange(-0.4, 0.4);
+        this.controller.setInputRange(120, 750);
 
         this.tower = tower;
     }
 
     public void setPosition(int position) {
+        this.lastPosition = ((int)this.controller.getSetpoint());
         this.controller.setSetpoint(position);
+        if (this.lastPosition > position)
+        {
+            // Going DOWN
+            this.controller.setPID(kPDown, kIDown, kDDown);
+            Arm.kP = kPUp;
+            Arm.kI = kIUp;
+            Arm.kD = kDUp;
+        }
+        else
+        {
+            // Going UP
+            this.controller.setPID(kPUp, kIUp, kDUp);
+            Arm.kP = kPDown;
+            Arm.kI = kIDown;
+            Arm.kD = kDDown;
+        }
         this.controller.enable();
     }
 
@@ -57,6 +84,8 @@ public class Arm {
     public class ArmOutput implements PIDOutput {
         private CANJaguar topMotor;
         private CANJaguar bottomMotor;
+        private double prevTopSpeed = 0;
+        private double prevBottomSpeed = 0;
 
         public ArmOutput(CANJaguar topMotor, CANJaguar bottomMotor) {
             this.topMotor = topMotor;
