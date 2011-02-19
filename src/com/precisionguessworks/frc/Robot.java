@@ -20,7 +20,8 @@ public class Robot extends IterativeRobot {
     private CANJaguar topArmMotor;
     private Tower tower;
     private Arm arm;
-    private Drive drive;
+//    private Drive drive;
+    private RobotDrive drive;
     private Compressor compressor;
 
     private long counter;
@@ -42,9 +43,9 @@ public class Robot extends IterativeRobot {
         System.out.println("Initializing CAN bus");
         while (true) {
             try {
-                frontLeftMotor = new CANJaguar(1);
+//                frontLeftMotor = new CANJaguar(1);
                 rearLeftMotor = new CANJaguar(2);
-                frontRightMotor = new CANJaguar(3);
+//                frontRightMotor = new CANJaguar(3);
                 rearRightMotor = new CANJaguar(4);
                 topArmMotor = new CANJaguar(5);
                 bottomArmMotor = new CANJaguar(6);
@@ -60,7 +61,9 @@ public class Robot extends IterativeRobot {
         pot = new AnalogChannel(3);
         this.arm = new Arm(pot, topArmMotor, bottomArmMotor, this.tower);
         this.tower = new Tower(new Solenoid(1), new Solenoid(2));
-        this.drive = new Drive(frontLeftMotor, rearLeftMotor, frontRightMotor, rearRightMotor, new Solenoid(3));
+//        this.drive = new Drive(frontLeftMotor, rearLeftMotor, frontRightMotor, rearRightMotor, new Solenoid(3));
+//        this.drive = new Drive(null, rearLeftMotor, null, rearRightMotor, new Solenoid(3));
+        this.drive = new RobotDrive(rearLeftMotor, rearRightMotor);
 
         this.compressor = new Compressor(5, 3);
         this.compressor.start();
@@ -73,6 +76,7 @@ public class Robot extends IterativeRobot {
 
     // Disabled mode
     public void disabledInit() {
+        arm.resetSpeedLimiter();    //Reset prevSpeed
     }
 
     public void disabledContinuous() {
@@ -183,7 +187,7 @@ public class Robot extends IterativeRobot {
 
         this.file.println("time,setpoint,value,drive");
         this.counter = 0;
-//        this.setpoint = 300;
+        this.setpoint = this.pot.getValue();    //Don't move the arm when we enable
 
         this.arm.setPosition(this.setpoint);
     }
@@ -194,7 +198,7 @@ public class Robot extends IterativeRobot {
     public void teleopPeriodic() {
         this.updateDashboard();
 
-//        this.controlDrive();
+        this.controlDrive();
         this.controlArm();
         this.controlClaw();
 //        System.out.println(pot.getValue());
@@ -207,6 +211,7 @@ public class Robot extends IterativeRobot {
     }
 
     private void controlDrive() {
+//        this.drive.tankDrive(this.leftGamepad.getLeftY(), this.leftGamepad.getRightY());
         this.drive.tankDrive(this.leftGamepad.getLeftY(), this.leftGamepad.getRightY());
     }
 
@@ -225,6 +230,11 @@ public class Robot extends IterativeRobot {
         {
             this.setpoint = 500;
             this.arm.setPosition(500);
+        }
+        else if(this.rightGamepad.getNumberedButton(7))
+        {
+            this.setpoint = 200;
+            this.arm.setPosition(200);
         }
 //        if (this.rightGamepad.getNumberedButton(7)) {
 //            this.arm.manualDrive(this.rightGamepad.getLeftY() * 0.5);

@@ -56,6 +56,11 @@ public class Arm {
         this.controller.enable();
     }
 
+    public void resetSpeedLimiter()
+    {
+        this.armOutput.resetPrevSpeed();
+    }
+
     public void setFloorPosition() {
         this.tower.lower();
         this.setPosition(0);
@@ -82,21 +87,37 @@ public class Arm {
     }
 
     public class ArmOutput implements PIDOutput {
+        public static final double maxDelta = .04;
+
         private CANJaguar topMotor;
         private CANJaguar bottomMotor;
-        private double prevTopSpeed = 0;
-        private double prevBottomSpeed = 0;
+        private double prevSpeed = 0;
 
         public ArmOutput(CANJaguar topMotor, CANJaguar bottomMotor) {
             this.topMotor = topMotor;
             this.bottomMotor = bottomMotor;
         }
 
+        public void resetPrevSpeed()
+        {
+            this.prevSpeed = 0;
+        }
+
         public void drive(double output) {
             byte syncGroup = (byte) 64;
-
+            System.out.print("raw out: " + output);
+            if (output > prevSpeed && Math.abs(output - prevSpeed) > maxDelta)
+            {
+                output = prevSpeed + maxDelta;
+            }
+            else if (output < prevSpeed && Math.abs(prevSpeed - output) > maxDelta)
+            {
+                output = prevSpeed - maxDelta;
+            }
+            System.out.println(", limited out: " + output);
             double left = Arm.limit(output);
             double right = -Arm.limit(output);
+            prevSpeed = output;
 
             try {
                 this.topMotor.setX(left, syncGroup);
