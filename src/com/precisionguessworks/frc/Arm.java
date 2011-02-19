@@ -105,7 +105,7 @@ public class Arm {
 
         public void drive(double output) {
             byte syncGroup = (byte) 64;
-            System.out.print("raw out: " + output);
+//            System.out.print("raw out: " + output);
             if (output > prevSpeed && Math.abs(output - prevSpeed) > maxDelta)
             {
                 output = prevSpeed + maxDelta;
@@ -114,7 +114,7 @@ public class Arm {
             {
                 output = prevSpeed - maxDelta;
             }
-            System.out.println(", limited out: " + output);
+//            System.out.println(", limited out: " + output);
             double left = Arm.limit(output);
             double right = -Arm.limit(output);
             prevSpeed = output;

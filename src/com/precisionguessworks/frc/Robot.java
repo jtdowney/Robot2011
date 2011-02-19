@@ -15,6 +15,11 @@ public class Robot extends IterativeRobot {
     private LogitechDualActionGamepad leftGamepad;
     private LogitechDualActionGamepad rightGamepad;
 
+    private boolean towerButtonPressed = false;
+    private boolean towerPosition = true;
+    public static final boolean kUP = true;
+    public static final boolean kDOWN = false;
+
     // subsystems
     private Claw claw;
     private CANJaguar topArmMotor;
@@ -201,6 +206,7 @@ public class Robot extends IterativeRobot {
         this.controlDrive();
         this.controlArm();
         this.controlClaw();
+        this.controlTower();
 //        System.out.println(pot.getValue());
         try {
             final String output = (this.counter++) + "," + this.setpoint + "," + this.pot.getValue() + "," + this.topArmMotor.getX();
@@ -210,28 +216,57 @@ public class Robot extends IterativeRobot {
         } catch (CANTimeoutException ex) {}
     }
 
+    private void controlTower() {
+        if(this.rightGamepad.getNumberedButton(7))
+        {
+            if(this.towerButtonPressed)
+            {
+                //Don't change the state if the button is being held down
+            }
+            else if(this.towerPosition == kUP)
+            {
+                this.tower.lower();
+                System.out.println("lowering tower");
+                this.towerPosition = kDOWN;
+                this.towerButtonPressed = true;
+            }
+            else
+            {
+                this.tower.raise();
+                System.out.println("raising tower");
+                this.towerPosition = kUP;
+                this.towerButtonPressed = true;
+            }
+        }
+        else
+        {
+            this.tower.hold();
+            this.towerButtonPressed = false;
+        }
+    }
+
     private void controlDrive() {
 //        this.drive.tankDrive(this.leftGamepad.getLeftY(), this.leftGamepad.getRightY());
         this.drive.tankDrive(this.leftGamepad.getLeftY(), this.leftGamepad.getRightY());
     }
 
     private void controlArm() {
-        if(this.rightGamepad.getNumberedButton(6))
+        if(this.rightGamepad.getNumberedButton(2))
         {
             this.setpoint = 300;
             this.arm.setPosition(300);
         }
-        else if(this.rightGamepad.getNumberedButton(8))
+        else if(this.rightGamepad.getNumberedButton(3))
         {
             this.setpoint = 400;
             this.arm.setPosition(400);
         }
-        else if(this.rightGamepad.getNumberedButton(5))
+        else if(this.rightGamepad.getNumberedButton(4))
         {
             this.setpoint = 500;
             this.arm.setPosition(500);
         }
-        else if(this.rightGamepad.getNumberedButton(7))
+        else if(this.rightGamepad.getNumberedButton(1))
         {
             this.setpoint = 200;
             this.arm.setPosition(200);
@@ -242,11 +277,11 @@ public class Robot extends IterativeRobot {
     }
     
     private void controlClaw() {
-        if (this.rightGamepad.getNumberedButton(3)) {
+        if (this.rightGamepad.getNumberedButton(5)) {
             this.claw.pushOut();
-        } else if (this.rightGamepad.getNumberedButton(1)) {
+        } else if (this.rightGamepad.getNumberedButton(6)) {
             this.claw.turnUp();
-        } else if (this.rightGamepad.getNumberedButton(2)) {
+        } else if (this.rightGamepad.getNumberedButton(8)) {
             this.claw.turnDown();
         } else if (this.claw.isHoldingTube()) {
             this.claw.stop();

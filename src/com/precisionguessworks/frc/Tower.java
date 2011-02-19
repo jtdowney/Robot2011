@@ -12,11 +12,16 @@ public class Tower {
     }
 
     public void raise() {
-        this.leftPiston.set(true);
+        this.leftPiston.set(false);
         this.rightPiston.set(true);
     }
 
     public void lower() {
+        this.leftPiston.set(true);
+        this.rightPiston.set(false);
+    }
+
+    public void hold() {
         this.leftPiston.set(false);
         this.rightPiston.set(false);
     }
