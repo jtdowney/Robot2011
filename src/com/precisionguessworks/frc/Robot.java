@@ -15,6 +15,11 @@ public class Robot extends IterativeRobot {
     private LogitechDualActionGamepad leftGamepad;
     private LogitechDualActionGamepad rightGamepad;
 
+    private boolean shiftButtonPressed = false;
+    private boolean shiftPosition = true;
+    public static final boolean kLOW = false;
+    public static final boolean kHIGH = true;
+
     private boolean towerButtonPressed = false;
     private boolean towerPosition = true;
     public static final boolean kUP = true;
@@ -25,8 +30,8 @@ public class Robot extends IterativeRobot {
     private CANJaguar topArmMotor;
     private Tower tower;
     private Arm arm;
-//    private Drive drive;
-    private RobotDrive drive;
+    private Drive drive;
+//    private RobotDrive drive;
     private Compressor compressor;
 
     private long counter;
@@ -67,8 +72,8 @@ public class Robot extends IterativeRobot {
         this.arm = new Arm(pot, topArmMotor, bottomArmMotor, this.tower);
         this.tower = new Tower(new Solenoid(1), new Solenoid(2));
 //        this.drive = new Drive(frontLeftMotor, rearLeftMotor, frontRightMotor, rearRightMotor, new Solenoid(3));
-//        this.drive = new Drive(null, rearLeftMotor, null, rearRightMotor, new Solenoid(3));
-        this.drive = new RobotDrive(rearLeftMotor, rearRightMotor);
+        this.drive = new Drive(rearLeftMotor, rearRightMotor, new Solenoid(3), new Solenoid(4));
+//        this.drive = new RobotDrive(rearLeftMotor, rearRightMotor);
 
         this.compressor = new Compressor(5, 3);
         this.compressor.start();
@@ -195,6 +200,8 @@ public class Robot extends IterativeRobot {
         this.setpoint = this.pot.getValue();    //Don't move the arm when we enable
 
         this.arm.setPosition(this.setpoint);
+
+        this.drive.shiftDown();
     }
 
     public void teleopContinuous() {
@@ -212,12 +219,12 @@ public class Robot extends IterativeRobot {
             final String output = (this.counter++) + "," + this.setpoint + "," + this.pot.getValue() + "," + this.topArmMotor.getX();
 
             this.file.println(output);
-            System.out.println(output);
+//            System.out.println(output);
         } catch (CANTimeoutException ex) {}
     }
 
     private void controlTower() {
-        if(this.rightGamepad.getNumberedButton(7))
+        if(this.rightGamepad.getNumberedButton(9) && this.pot.getValue() < 310)
         {
             if(this.towerButtonPressed)
             {
@@ -247,7 +254,34 @@ public class Robot extends IterativeRobot {
 
     private void controlDrive() {
 //        this.drive.tankDrive(this.leftGamepad.getLeftY(), this.leftGamepad.getRightY());
+        if(this.leftGamepad.getNumberedButton(8))
+        {
+            if(this.shiftButtonPressed)
+            {
+
+            }
+            else if(this.shiftPosition == kHIGH)
+            {
+                this.drive.shiftDown();
+                System.out.println("shifting down");
+                this.shiftPosition = kLOW;
+                this.shiftButtonPressed = true;
+            }
+            else
+            {
+                this.drive.shiftUp();
+                System.out.println("shifting up");
+                this.shiftPosition = kHIGH;
+                this.shiftButtonPressed = true;
+            }
+        }
+        else
+        {
+            this.drive.shiftHold();
+            this.shiftButtonPressed = false;
+        }
         this.drive.tankDrive(this.leftGamepad.getLeftY(), this.leftGamepad.getRightY());
+
     }
 
     private void controlArm() {

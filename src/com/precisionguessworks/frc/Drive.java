@@ -5,26 +5,39 @@ import edu.wpi.first.wpilibj.Solenoid;
 import edu.wpi.first.wpilibj.can.CANTimeoutException;
 
 public class Drive {
-    private static final double kInputDapen = 1.0;
+    private static final double kInputDampen = 1.0;
 
     private int inverseFactor = 1;
     private final CANJaguar frontLeftMotor;
     private final CANJaguar rearLeftMotor;
     private final CANJaguar frontRightMotor;
     private final CANJaguar rearRightMotor;
-    private final Solenoid shifterSolenoid;
+    private final Solenoid shiftUpSolenoid;
+    private final Solenoid shiftDownSolenoid;
     
     public Drive(
             CANJaguar frontLeftMotor,
             CANJaguar rearLeftMotor,
             CANJaguar frontRightMotor,
             CANJaguar rearRightMotor,
-            Solenoid shifterSolenoid) {
-        this.shifterSolenoid = shifterSolenoid;
+            Solenoid shiftUpSolenoid,
+            Solenoid shiftDownSolenoid) {
+        this.shiftUpSolenoid = shiftUpSolenoid;
+        this.shiftDownSolenoid = shiftDownSolenoid;
         this.frontLeftMotor = frontLeftMotor;
         this.rearLeftMotor = rearLeftMotor;
         this.frontRightMotor = frontRightMotor;
         this.rearRightMotor = rearRightMotor;
+    }
+
+    public Drive(
+            CANJaguar leftMotor,
+            CANJaguar rightMotor,
+            Solenoid shiftUpSolenoid,
+            Solenoid shiftDownSolenoid)
+    {
+        this(leftMotor, leftMotor, rightMotor,
+                rightMotor, shiftUpSolenoid, shiftDownSolenoid);
     }
 
     public void invert() {
@@ -32,11 +45,18 @@ public class Drive {
     }
 
     public void shiftUp() {
-        this.shifterSolenoid.set(true);
+        this.shiftUpSolenoid.set(true);
+        this.shiftDownSolenoid.set(false);
     }
 
     public void shiftDown() {
-        this.shifterSolenoid.set(false);
+        this.shiftUpSolenoid.set(false);
+        this.shiftDownSolenoid.set(true);
+    }
+
+    public void shiftHold() {
+        this.shiftUpSolenoid.set(false);
+        this.shiftDownSolenoid.set(false);
     }
 
     public void tankDrive(double left, double right) {
