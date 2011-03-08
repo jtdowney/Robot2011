@@ -14,6 +14,10 @@ public class Drive {
     private final CANJaguar rearRightMotor;
     private final Solenoid shiftUpSolenoid;
     private final Solenoid shiftDownSolenoid;
+
+    public static final boolean kLOW = false;
+    public static final boolean kHIGH = true;
+    private boolean shiftPosition = kLOW;
     
     public Drive(
             CANJaguar frontLeftMotor,
@@ -36,8 +40,7 @@ public class Drive {
             Solenoid shiftUpSolenoid,
             Solenoid shiftDownSolenoid)
     {
-        this(leftMotor, leftMotor, rightMotor,
-                rightMotor, shiftUpSolenoid, shiftDownSolenoid);
+        this(leftMotor, leftMotor, rightMotor, rightMotor, shiftUpSolenoid, shiftDownSolenoid);
     }
 
     public void invert() {
@@ -47,16 +50,30 @@ public class Drive {
     public void shiftUp() {
         this.shiftUpSolenoid.set(true);
         this.shiftDownSolenoid.set(false);
+        System.out.println("shifting up");
+
+        this.shiftPosition = kHIGH;
     }
 
     public void shiftDown() {
         this.shiftUpSolenoid.set(false);
         this.shiftDownSolenoid.set(true);
+        System.out.println("shifting down");
+
+        this.shiftPosition = kLOW;
     }
 
     public void shiftHold() {
         this.shiftUpSolenoid.set(false);
         this.shiftDownSolenoid.set(false);
+    }
+
+    public void toggleShift() {
+        if (this.shiftPosition == kHIGH) {
+            this.shiftDown();
+        } else {
+            this.shiftUp();
+        }
     }
 
     public void tankDrive(double left, double right) {

@@ -2,60 +2,59 @@ package com.precisionguessworks.frc;
 
 import edu.wpi.first.wpilibj.*;
 import edu.wpi.first.wpilibj.can.CANTimeoutException;
-import java.io.PrintStream;
-import java.util.Calendar;
-import javax.microedition.io.Connector;
-import com.sun.squawk.microedition.io.FileConnection;
-import com.sun.squawk.util.Arrays;
 
 public class Robot extends IterativeRobot {
-    private AnalogChannel pot;
-    private PrintStream file;
-    // inputs
-    private LogitechDualActionGamepad leftGamepad;
-    private LogitechDualActionGamepad rightGamepad;
+    private static final int kOtherPickupPosition = 0;
+    private static final int kMediumPickupPosition = 1;
+    private static final int kLowPickupPosition = 2;
 
+    // state
+    private long counter;
+    private DataFile armDataFile;
     private boolean shiftButtonPressed = false;
-    private boolean shiftPosition = true;
-    public static final boolean kLOW = false;
-    public static final boolean kHIGH = true;
+    private boolean pickingUp = false;
+    private Timer pickupTimer = new Timer();
+    private int pickupPosition = kOtherPickupPosition;
 
-    private boolean towerButtonPressed = false;
-    private boolean towerPosition = true;
-    public static final boolean kUP = true;
-    public static final boolean kDOWN = false;
+    // inputs
+    private Gamepad leftGamepad;
+    private Gamepad rightGamepad;
 
     // subsystems
     private Claw claw;
-    private CANJaguar topArmMotor;
     private Tower tower;
     private Arm arm;
     private Drive drive;
-//    private RobotDrive drive;
     private Compressor compressor;
-
-    private long counter;
-    private int setpoint;
 
     public void robotInit() {
         System.out.println("Initializing robot");
+        
+        try {
+            this.armDataFile = new DataFile("arm_data");
+            this.armDataFile.writeln("time,setpoint,value,drive");
+        } catch (Exception exception) {
+            System.out.println("Unable to open data file for writing");
+        }
 
-        this.leftGamepad = new LogitechDualActionGamepad(1);
-        this.rightGamepad = new LogitechDualActionGamepad(2);
+        this.leftGamepad = new Gamepad(1);
+        this.rightGamepad = new Gamepad(2);
+
+        System.out.println("Initializing subsystems");
 
         CANJaguar frontLeftMotor;
         CANJaguar rearLeftMotor;
         CANJaguar frontRightMotor;
         CANJaguar rearRightMotor;
-        //CANJaguar topArmMotor;
+        CANJaguar topArmMotor;
         CANJaguar bottomArmMotor;
 
         System.out.println("Initializing CAN bus");
         while (true) {
             try {
-//                frontLeftMotor = new CANJaguar(1);
+                frontLeftMotor = new CANJaguar(1);
                 rearLeftMotor = new CANJaguar(2);
-//                frontRightMotor = new CANJaguar(3);
+                frontRightMotor = new CANJaguar(3);
                 rearRightMotor = new CANJaguar(4);
                 topArmMotor = new CANJaguar(5);
                 bottomArmMotor = new CANJaguar(6);
@@ -65,28 +64,39 @@ public class Robot extends IterativeRobot {
                 System.out.println("CAN Timeout");
             }
         }
+        
         System.out.println("CAN bus initialized");
 
         this.claw = new Claw(new DigitalInput(6), new Relay(1), new Relay(2));
-        pot = new AnalogChannel(3);
-        this.arm = new Arm(pot, topArmMotor, bottomArmMotor, this.tower);
+        this.arm = new Arm(new AnalogChannel(3), topArmMotor, bottomArmMotor);
         this.tower = new Tower(new Solenoid(1), new Solenoid(2));
-//        this.drive = new Drive(frontLeftMotor, rearLeftMotor, frontRightMotor, rearRightMotor, new Solenoid(3));
-        this.drive = new Drive(rearLeftMotor, rearRightMotor, new Solenoid(3), new Solenoid(4));
-//        this.drive = new RobotDrive(rearLeftMotor, rearRightMotor);
+        this.drive = new Drive(frontLeftMotor, rearLeftMotor, frontRightMotor, rearRightMotor, new Solenoid(3), new Solenoid(4));
 
         this.compressor = new Compressor(5, 3);
         this.compressor.start();
 
-        // turn on photoswitches
-        new Solenoid(8).set(true);
-
+        System.out.println("Subsystems initialized");
         System.out.println("Robot initialized");
+    }
+
+    public void reset() {
+        this.counter = 0;
+        this.shiftButtonPressed = false;
+        this.pickingUp = false;
+        this.pickupPosition = kOtherPickupPosition;
+
+        this.drive.shiftDown();
+        this.tower.raise();
+        this.arm.resetPIDController();
+        this.arm.resetSpeedLimiter();
+
+        // turn on photoswitches
+        //new Solenoid(8).set(true);
     }
 
     // Disabled mode
     public void disabledInit() {
-        arm.resetSpeedLimiter();    //Reset prevSpeed
+        this.reset();
     }
 
     public void disabledContinuous() {
@@ -97,61 +107,8 @@ public class Robot extends IterativeRobot {
     }
 
     // Autonomous mode
-    public static String paddingString(String s, int n, char c, boolean paddingLeft) {
-        if (s == null) {
-            return s;
-        }
-
-        int add = n - s.length(); // may overflow int size... should not be a problem in real life
-        if(add <= 0) {
-            return s;
-        }
-
-        StringBuffer str = new StringBuffer(s);
-        char[] ch = new char[add];
-        Arrays.fill(ch, c);
-
-        if(paddingLeft){
-            str.insert(0, ch);
-        } else {
-            str.append(ch);
-        }
-        
-        return str.toString();
-    }
-
     public void autonomousInit() {
-        try {
-            Calendar cal = Calendar.getInstance();
-
-            String year = new Integer(cal.get(Calendar.YEAR)).toString();
-            String month = new Integer(cal.get(Calendar.MONTH) + 1).toString();
-            String date = new Integer(cal.get(Calendar.DATE)).toString();
-            String hour = new Integer(cal.get(Calendar.HOUR_OF_DAY)).toString();
-            String minute = new Integer(cal.get(Calendar.MINUTE)).toString();
-            String second = new Integer(cal.get(Calendar.SECOND)).toString();
-            String name =
-                    year +
-                    Robot.paddingString(month, 2, '0', true) +
-                    Robot.paddingString(date, 2, '0', true) + "-" +
-                    Robot.paddingString(hour, 2, '0', true) +
-                    Robot.paddingString(minute, 2, '0', true) +
-                    Robot.paddingString(second, 2, '0', true);
-
-//            name += "_" + Arm.kP + "_" + Arm.kI + "_" + Arm.kD + ".csv";
-            name += ".csv";
-
-            FileConnection connection = (FileConnection) Connector.open("file:///" + name, Connector.WRITE);
-            connection.create();
-            
-            this.file = new PrintStream(connection.openDataOutputStream());
-        } catch (Exception e) {}
-
-        this.file.println("time,setpoint,value,drive");
-        this.counter = 0;
-        this.setpoint = 300;
-
-        this.arm.setPosition(this.setpoint);
+        this.reset();
     }
 
     public void autonomousContinuous() {
@@ -159,49 +116,12 @@ public class Robot extends IterativeRobot {
 
     public void autonomousPeriodic() {
         this.updateDashboard();
-
-        try {
-            final String output = (this.counter++) + "," + this.setpoint + "," + this.pot.getValue() + "," + this.topArmMotor.getX();
-
-            this.file.println(output);
-            System.out.println(output);
-        } catch (CANTimeoutException ex) {}
+        this.writeArmData();
     }
 
     // Teleop mode
     public void teleopInit() {
-                try {
-            Calendar cal = Calendar.getInstance();
-
-            String year = new Integer(cal.get(Calendar.YEAR)).toString();
-            String month = new Integer(cal.get(Calendar.MONTH) + 1).toString();
-            String date = new Integer(cal.get(Calendar.DATE)).toString();
-            String hour = new Integer(cal.get(Calendar.HOUR_OF_DAY)).toString();
-            String minute = new Integer(cal.get(Calendar.MINUTE)).toString();
-            String second = new Integer(cal.get(Calendar.SECOND)).toString();
-            String name =
-                    year +
-                    Robot.paddingString(month, 2, '0', true) +
-                    Robot.paddingString(date, 2, '0', true) + "-" +
-                    Robot.paddingString(hour, 2, '0', true) +
-                    Robot.paddingString(minute, 2, '0', true) +
-                    Robot.paddingString(second, 2, '0', true);
-
-            name += "_" + Arm.kP + "_" + Arm.kI + "_" + Arm.kD + ".csv";
-
-            FileConnection connection = (FileConnection) Connector.open("file:///" + name, Connector.WRITE);
-            connection.create();
-
-            this.file = new PrintStream(connection.openDataOutputStream());
-        } catch (Exception e) {}
-
-        this.file.println("time,setpoint,value,drive");
-        this.counter = 0;
-        this.setpoint = this.pot.getValue();    //Don't move the arm when we enable
-
-        this.arm.setPosition(this.setpoint);
-
-        this.drive.shiftDown();
+        this.reset();
     }
 
     public void teleopContinuous() {
@@ -209,105 +129,86 @@ public class Robot extends IterativeRobot {
 
     public void teleopPeriodic() {
         this.updateDashboard();
+        this.writeArmData();
 
         this.controlDrive();
         this.controlArm();
         this.controlClaw();
-        this.controlTower();
-//        System.out.println(pot.getValue());
-        try {
-            final String output = (this.counter++) + "," + this.setpoint + "," + this.pot.getValue() + "," + this.topArmMotor.getX();
-
-            this.file.println(output);
-//            System.out.println(output);
-        } catch (CANTimeoutException ex) {}
+//        this.controlTower();
     }
 
-    private void controlTower() {
-        if(this.rightGamepad.getNumberedButton(9) && this.pot.getValue() < 310)
-        {
-            if(this.towerButtonPressed)
-            {
-                //Don't change the state if the button is being held down
-            }
-            else if(this.towerPosition == kUP)
-            {
-                this.tower.lower();
-                System.out.println("lowering tower");
-                this.towerPosition = kDOWN;
-                this.towerButtonPressed = true;
-            }
-            else
-            {
-                this.tower.raise();
-                System.out.println("raising tower");
-                this.towerPosition = kUP;
-                this.towerButtonPressed = true;
-            }
-        }
-        else
-        {
-            this.tower.hold();
-            this.towerButtonPressed = false;
-        }
-    }
+//    private void controlTower() {
+//        if (this.rightGamepad.getNumberedButton(9) && this.pot.getValue() < 310)
+//        {
+//            if(this.towerButtonPressed)
+//            {
+//                //Don't change the state if the button is being held down
+//            }
+//            else if (this.towerPosition == kUP)
+//            {
+//                this.tower.lower();
+//                System.out.println("lowering tower");
+//                this.towerPosition = kDOWN;
+//                this.towerButtonPressed = true;
+//            }
+//            else
+//            {
+//                this.tower.raise();
+//                System.out.println("raising tower");
+//                this.towerPosition = kUP;
+//                this.towerButtonPressed = true;
+//            }
+//        }
+//        else
+//        {
+//            this.tower.hold();
+//            this.towerButtonPressed = false;
+//        }
+//    }
 
     private void controlDrive() {
-//        this.drive.tankDrive(this.leftGamepad.getLeftY(), this.leftGamepad.getRightY());
-        if(this.leftGamepad.getNumberedButton(8))
+        if (this.leftGamepad.getNumberedButton(8))
         {
-            if(this.shiftButtonPressed)
-            {
-
-            }
-            else if(this.shiftPosition == kHIGH)
-            {
-                this.drive.shiftDown();
-                System.out.println("shifting down");
-                this.shiftPosition = kLOW;
-                this.shiftButtonPressed = true;
-            }
-            else
-            {
-                this.drive.shiftUp();
-                System.out.println("shifting up");
-                this.shiftPosition = kHIGH;
+            if (!this.shiftButtonPressed) {
+                this.drive.toggleShift();
                 this.shiftButtonPressed = true;
             }
         }
         else
         {
-            this.drive.shiftHold();
             this.shiftButtonPressed = false;
         }
+        
         this.drive.tankDrive(this.leftGamepad.getLeftY(), this.leftGamepad.getRightY());
-
     }
 
     private void controlArm() {
-        if(this.rightGamepad.getNumberedButton(2))
+        if (this.counter % 10 == 0) {
+            System.out.println("Current pot value: " + this.arm.getCurrentPosition());
+        }
+
+        if (this.rightGamepad.getNumberedButton(1) || this.pickingUp) {
+            this.pickup();
+        }
+        else if(this.rightGamepad.getNumberedButton(2))
         {
-            this.setpoint = 300;
+            //this.arm.setPosition(200);
             this.arm.setPosition(300);
         }
-        else if(this.rightGamepad.getNumberedButton(3))
+        else if (this.rightGamepad.getNumberedButton(3))
         {
-            this.setpoint = 400;
-            this.arm.setPosition(400);
+            this.arm.setPosition(380);
+            //this.arm.setPosition(480);
         }
-        else if(this.rightGamepad.getNumberedButton(4))
+        else if (this.rightGamepad.getNumberedButton(4))
         {
-            this.setpoint = 500;
-            this.arm.setPosition(500);
+            this.arm.setPosition(515);
         }
-        else if(this.rightGamepad.getNumberedButton(1))
-        {
-            this.setpoint = 200;
-            this.arm.setPosition(200);
-        }
-//        if (this.rightGamepad.getNumberedButton(7)) {
-//            this.arm.manualDrive(this.rightGamepad.getLeftY() * 0.5);
-//        }
+
+        // here be dragons
+        //if (this.rightGamepad.getNumberedButton(7)) {
+        //    this.arm.manualDrive(this.rightGamepad.getLeftY() * 0.5);
+        //}
     }
     
     private void controlClaw() {
@@ -322,6 +223,70 @@ public class Robot extends IterativeRobot {
         } else {
             this.claw.pullIn();
         }
+    }
+
+    private void pickup() {
+        if (!this.pickingUp) {
+            // start picking up
+            this.pickingUp = true;
+
+            this.pickupPosition = kOtherPickupPosition;
+            this.arm.setPosition(200);
+
+            System.out.println("Starting pickup, going to medium position");
+        }
+
+        if (this.pickupPosition == kOtherPickupPosition && this.arm.getCurrentPosition() >= 180 && this.arm.getCurrentPosition() <= 275) {
+            // we've reached our medium position, drop the tower
+            this.pickupPosition = kMediumPickupPosition;
+
+            this.tower.lower();
+            this.pickupTimer.start();
+
+            System.out.println("Lowering tower");
+        }
+
+        if (this.pickupPosition == kMediumPickupPosition && this.pickupTimer.get() >= 0.2) {
+            // we've moved the tower, go to the floor or hold position
+            this.pickupPosition = kLowPickupPosition;
+
+            this.pickupTimer.stop();
+            this.pickupTimer.reset();
+
+            System.out.println("Going to lower position");
+
+            if (this.claw.isHoldingTube()) {
+                this.arm.setPosition(120);
+                // we're holding a tube in the lowest position, our work here is done
+                this.pickingUp = false;
+
+                System.out.println("I haz a tube");
+            } else {
+                this.arm.setPosition(175);
+                System.out.println("I can haz tube?");
+            }
+        }
+
+        if (this.pickupPosition == kLowPickupPosition && this.claw.isHoldingTube()) {
+            // we've acquired the tube in the floor position, raise the tower
+            this.pickupPosition = kMediumPickupPosition;
+
+            this.tower.raise();
+            this.pickupTimer.start();
+
+            System.out.println("I have you now, raising towner");
+        }
+    }
+
+    private void writeArmData() {
+        final String output =
+                (this.counter++) + "," +
+                this.arm.getTargetPosition() + "," +
+                this.arm.getCurrentPosition() + "," +
+                this.arm.getCurrentSpeed();
+
+        this.armDataFile.writeln(output);
+        //System.out.println(output);
     }
 
     // <editor-fold defaultstate="collapsed" desc="Dashboard Update">

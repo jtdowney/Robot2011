@@ -2,7 +2,7 @@ package com.precisionguessworks.frc;
 
 import edu.wpi.first.wpilibj.DriverStation;
 
-public class LogitechDualActionGamepad {
+public class Gamepad {
     public static final int kLeftXAxis = 1;
     public static final int kLeftYAxis = 2;
     public static final int kRightXAxis = 3;
@@ -27,7 +27,7 @@ public class LogitechDualActionGamepad {
     private final DriverStation ds = DriverStation.getInstance();
     private final int port;
 
-    public LogitechDualActionGamepad(final int port) {
+    public Gamepad(final int port) {
         this.port = port;
     }
 
