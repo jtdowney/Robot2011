@@ -9,10 +9,10 @@ public class Robot extends IterativeRobot {
     private static final int kLowPickupPosition = 2;
 
     // autonomous tuning constants
-    private static final double kAutoStraightSpeed = .35;
-    private static final double kAutoTurnSpeed = .25;
-    private static final double kAutoLowScale = .4;
-    private static final double kAutoHighScale = .8;
+    private static final double kAutoStraightSpeed = -.35;
+    private static final double kAutoTurnSpeed = -.3;
+    private static final double kAutoLowScale = 0;
+    private static final double kAutoHighScale = .4;
     
     private int lineLastSeen = kNone;
     private static final int kNone = 0;
@@ -40,6 +40,7 @@ public class Robot extends IterativeRobot {
     private Compressor compressor;
 
     private DigitalInput leftLine, middleLine, rightLine;
+    private Solenoid linePower;
 
     public void robotInit() {
         System.out.println("Initializing robot");
@@ -89,9 +90,11 @@ public class Robot extends IterativeRobot {
         this.compressor = new Compressor(5, 3);
         this.compressor.start();
 
-        this.leftLine = new DigitalInput(1);
+        linePower = new Solenoid(8);
+        linePower.set(true);
+        this.leftLine = new DigitalInput(3);
         this.middleLine = new DigitalInput(2);
-        this.rightLine = new DigitalInput(3);
+        this.rightLine = new DigitalInput(1);
 
         System.out.println("Subsystems initialized");
         System.out.println("Robot initialized");
@@ -130,17 +133,47 @@ public class Robot extends IterativeRobot {
     public void autonomousInit() {
         this.reset();
         this.lineFollowReset();
-//        System.out.println("Raising arm.");
-//        this.arm.setPosition(515);
+        System.out.println("Raising arm.");
+        this.arm.setPosition(615);
+        atTee = false;
     }
 
     public void autonomousContinuous() {
     }
 
+    private Timer teaTimer = new Timer();
+    private boolean atTee = false;
+    private Timer backAwayTimer = new Timer();
+
     public void autonomousPeriodic() {
         this.updateDashboard();
         this.writeArmData();
-//        this.followLine();
+        
+        if(teaTimer.get() > .1 && this.autoTSeen) {
+            atTee = true;
+            System.out.println("Tea timer expired - atTee true");
+        }
+
+        if(atTee)
+        {
+            // We've stopped - release the tube
+            this.claw.openJaw();
+            this.teaTimer.stop();
+            this.arm.setPosition(600);
+            this.drive.tankDrive(-kAutoTurnSpeed, -kAutoTurnSpeed);
+        }
+        else
+        {
+            this.followLine();
+        }
+
+        if(this.autoTSeen)
+        {
+            if(teaTimer.get() == 0) {
+                System.out.println("Starting tea timer");
+                teaTimer.start();
+            }
+        }
     }
 
 
@@ -159,6 +192,13 @@ public class Robot extends IterativeRobot {
         this.controlDrive();
         this.controlArm();
         this.controlClaw();
+        if(leftLine.get())
+            System.out.println("left");
+        if(middleLine.get())
+            System.out.println("middle");
+        if(rightLine.get())
+            System.out.println("right");
+
 //        this.controlTower();
     }
 
@@ -182,26 +222,41 @@ public class Robot extends IterativeRobot {
         boolean middle = middleLine.get();
         boolean right = rightLine.get();
 
-        if(autoTSeen) {
+        autoTSeen = false;
+        if(atTee) {
             this.drive.tankDrive(0,0);
         }
         else if(left && middle && right) {
-            //If all three are triggered, we have reached the T at the end of the line
-            this.drive.tankDrive(0, 0);
             autoTSeen = true;
+            if(!atTee) {
+                System.out.println("Hunting for tee");
+                this.drive.tankDrive(kAutoTurnSpeed, kAutoTurnSpeed);
+            }
+            else {
+                //If all three are triggered, we have reached the T at the end of the line
+                this.drive.tankDrive(0, 0);
+                System.out.println("T seen - not moving.");
+            }
+        }
+        else if (left && right) {
+            //Fork - go left
+            this.drive.tankDrive(0, kAutoStraightSpeed);
         }
         else if(left && middle) {
             this.drive.tankDrive(kAutoStraightSpeed * kAutoHighScale,
                     kAutoStraightSpeed);
+            System.out.println("Going slightly left");
         }
         else if (middle && right) {
             this.drive.tankDrive(kAutoStraightSpeed, 
                     kAutoStraightSpeed * kAutoHighScale);
+            System.out.println("Going slightly right");
         }
         else if (left) {
             this.drive.tankDrive(kAutoTurnSpeed * kAutoLowScale,
                     kAutoTurnSpeed);
             lineLastSeen = kLeft;
+            System.out.println("Going left");
         }
         else if (middle) {
             this.drive.tankDrive(kAutoStraightSpeed, kAutoStraightSpeed);
@@ -211,19 +266,31 @@ public class Robot extends IterativeRobot {
             this.drive.tankDrive(kAutoTurnSpeed,
                     kAutoTurnSpeed * kAutoLowScale);
             lineLastSeen = kRight;
+            System.out.println("Going right");
         }
         else {
-            if(currTurnDir == kNone) {
+            if (teaTimer.get() > 0 && lineLastSeen == kNone) {
+                this.atTee = true;
+                System.out.println("special Tee");
+            }
+            else if(currTurnDir == kNone) {
+                System.out.print("Starting turn: ");
                 turnTimer.reset();
                 turnTimer.start();
                 if(lineLastSeen == kRight) {
                     currTurnDir = kRight;
+                    firstTurn = true;
+                    System.out.println("right");
                 }
                 else {
                     currTurnDir = kLeft;
+                    firstTurn = true;
+                    System.out.println("left");
                 }
             }
-            else if((firstTurn && turnTimer.get() >= .5) || (!firstTurn && turnTimer.get() >= 1)) {
+            else if((firstTurn && turnTimer.get() >= 2)) {
+                firstTurn = false;
+                System.out.println("Switching turn directions");
                 // Switch directions
                 if (currTurnDir == kLeft) {
                     currTurnDir = kRight;
@@ -234,42 +301,13 @@ public class Robot extends IterativeRobot {
             }
 
             if (currTurnDir == kRight) {
-                this.drive.tankDrive(0, kAutoTurnSpeed);
+                this.drive.tankDrive(kAutoTurnSpeed, -kAutoTurnSpeed * kAutoHighScale);
             }
             else if(currTurnDir == kLeft) {
-                this.drive.tankDrive(kAutoTurnSpeed, 0);
+                this.drive.tankDrive(-kAutoTurnSpeed * kAutoHighScale, kAutoTurnSpeed);
             }
         }
     }
-
-//    private void controlTower() {
-//        if (this.rightGamepad.getNumberedButton(9) && this.pot.getValue() < 310)
-//        {
-//            if(this.towerButtonPressed)
-//            {
-//                //Don't change the state if the button is being held down
-//            }
-//            else if (this.towerPosition == kUP)
-//            {
-//                this.tower.lower();
-//                System.out.println("lowering tower");
-//                this.towerPosition = kDOWN;
-//                this.towerButtonPressed = true;
-//            }
-//            else
-//            {
-//                this.tower.raise();
-//                System.out.println("raising tower");
-//                this.towerPosition = kUP;
-//                this.towerButtonPressed = true;
-//            }
-//        }
-//        else
-//        {
-//            this.tower.hold();
-//            this.towerButtonPressed = false;
-//        }
-//    }
 
     private void controlDrive() {
         if (this.leftGamepad.getNumberedButton(8))
@@ -301,15 +339,13 @@ public class Robot extends IterativeRobot {
             this.pickup();
         }
         else if(this.rightGamepad.getNumberedButton(2)) {
-            //this.arm.setPosition(200);
             this.arm.setPosition(330);
         }
         else if (this.rightGamepad.getNumberedButton(3)) {
             this.arm.setPosition(450);
-            //this.arm.setPosition(480);
         }
         else if (this.rightGamepad.getNumberedButton(4)) {
-            this.arm.setPosition(605);
+            this.arm.setPosition(615);
         }
 
         // here be dragons
