@@ -2,17 +2,24 @@ package com.precisionguessworks.frc;
 
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Relay;
+import edu.wpi.first.wpilibj.Solenoid;
 
 public class Claw {
     private DigitalInput bumpSwitch;
     private Relay topClawRelay;
     private Relay bottomClawRelay;
+    private Solenoid jawOpen;
+    private Solenoid jawClose;
 
-    public Claw(DigitalInput bumpSwitch, Relay topClawRelay, Relay bottomClawRelay) {
+    public Claw(DigitalInput bumpSwitch, Relay topClawRelay, Relay bottomClawRelay, 
+            Solenoid jawOpen, Solenoid jawClose) {
         this.bumpSwitch = bumpSwitch;
         this.topClawRelay = topClawRelay;
         this.bottomClawRelay = bottomClawRelay;
+        this.jawOpen = jawOpen;
+        this.jawClose = jawClose;
     }
+
 
     public boolean isHoldingTube() {
         return !this.bumpSwitch.get();
@@ -42,4 +49,17 @@ public class Claw {
         this.topClawRelay.set(Relay.Value.kReverse);
         this.bottomClawRelay.set(Relay.Value.kReverse);
     }
+
+    public void closeJaw() {
+        this.jawClose.set(true);
+        this.jawOpen.set(false);
+    }
+
+    public void openJaw() {
+        this.jawClose.set(false);
+        this.jawOpen.set(true);
+    }
+
+    public static final Relay.Value CLOSE_JAW = Relay.Value.kForward;
+    public static final Relay.Value OPEN_JAW = Relay.Value.kReverse;
 }
