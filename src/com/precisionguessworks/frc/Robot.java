@@ -9,8 +9,8 @@ public class Robot extends IterativeRobot {
     private static final int kLowPickupPosition = 2;
 
     // autonomous tuning constants
-    private static final double kAutoStraightSpeed = .4;
-    private static final double kAutoTurnSpeed = .3;
+    private static final double kAutoStraightSpeed = .35;
+    private static final double kAutoTurnSpeed = .25;
     private static final double kAutoLowScale = .4;
     private static final double kAutoHighScale = .8;
     
@@ -98,7 +98,7 @@ public class Robot extends IterativeRobot {
     }
 
     public void reset() {
-        this.counter = 0;
+//        this.counter = 0;
         this.shiftButtonPressed = false;
         this.pickingUp = false;
         this.pickupPosition = kOtherPickupPosition;
@@ -130,8 +130,8 @@ public class Robot extends IterativeRobot {
     public void autonomousInit() {
         this.reset();
         this.lineFollowReset();
-        System.out.println("Raising arm.");
-        this.arm.setPosition(515);
+//        System.out.println("Raising arm.");
+//        this.arm.setPosition(515);
     }
 
     public void autonomousContinuous() {
@@ -140,7 +140,7 @@ public class Robot extends IterativeRobot {
     public void autonomousPeriodic() {
         this.updateDashboard();
         this.writeArmData();
-        this.followLine();
+//        this.followLine();
     }
 
 
@@ -294,25 +294,22 @@ public class Robot extends IterativeRobot {
     private void controlArm() {
         if (this.counter % 10 == 0) {
             System.out.println("Current pot value: " + this.arm.getCurrentPosition());
-            System.out.println("Current set point: " + this.arm.getTargetPosition());
+            System.out.println("        set point: " + this.arm.getTargetPosition() + "\n");
         }
 
         if (this.rightGamepad.getNumberedButton(1) || this.pickingUp) {
             this.pickup();
         }
-        else if(this.rightGamepad.getNumberedButton(2))
-        {
+        else if(this.rightGamepad.getNumberedButton(2)) {
             //this.arm.setPosition(200);
             this.arm.setPosition(330);
         }
-        else if (this.rightGamepad.getNumberedButton(3))
-        {
-            this.arm.setPosition(420);
+        else if (this.rightGamepad.getNumberedButton(3)) {
+            this.arm.setPosition(450);
             //this.arm.setPosition(480);
         }
-        else if (this.rightGamepad.getNumberedButton(4))
-        {
-            this.arm.setPosition(635);
+        else if (this.rightGamepad.getNumberedButton(4)) {
+            this.arm.setPosition(605);
         }
 
         // here be dragons
@@ -352,7 +349,7 @@ public class Robot extends IterativeRobot {
 
             this.pickupPosition = kOtherPickupPosition;
             this.arm.resetPIDInternals();
-            this.arm.setPosition(315);
+            this.arm.setPosition(325);
 
             System.out.println("Starting pickup, going to medium position");
         }
@@ -364,7 +361,6 @@ public class Robot extends IterativeRobot {
             this.arm.resetPIDInternals();
             this.tower.lower();
             this.pickupTimer.start();
-
 
             System.out.println("Lowering tower");
         }
@@ -407,7 +403,7 @@ public class Robot extends IterativeRobot {
                 (this.counter++) + "," +
                 this.arm.getTargetPosition() + "," +
                 this.arm.getCurrentPosition() + "," +
-                this.arm.getCurrentSpeed();
+                (Math.abs(this.arm.getCurrentSpeed()) < .001 ? 0 : this.arm.getCurrentSpeed());
 
         this.armDataFile.writeln(output);
         //System.out.println(output);

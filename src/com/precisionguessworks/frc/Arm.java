@@ -7,17 +7,13 @@ import edu.wpi.first.wpilibj.PIDOutput;
 import edu.wpi.first.wpilibj.can.CANTimeoutException;
 
 public class Arm {
-    public static final double kPUp = 0.005;
-    public static final double kIUp = 0.00003;
-    public static final double kDUp = .006;
+    public static final double kPUp = 0.004;
+    public static final double kIUp = 0.00006;
+    public static final double kDUp = .00002;
 
-    public static final double kPDown = 0.003;
-    public static final double kIDown = .000005;
-    public static final double kDDown = .001;
-
-//    public static final double kPDown = 0.002;
-//    public static final double kIDown = 0.0008;
-//    public static final double kDDown = 0.003;
+    public static final double kPDown = 0.001;
+    public static final double kIDown = .00001;
+    public static final double kDDown = .00002;
 
     private final AnalogChannel armPotentiometer;
     private final ArmOutput armOutput;
@@ -29,7 +25,7 @@ public class Arm {
         this.armPotentiometer = armPotentiometer;
         this.armOutput = new ArmOutput(topMotor, bottomMotor);
         this.controller = new PIDController(kPUp, kIUp, kDUp, armPotentiometer, armOutput);
-        this.controller.setOutputRange(-0.45, 0.5);
+        this.controller.setOutputRange(-0.5, 0.5);
         this.controller.setInputRange(200, 750);
 
         this.controller.enable();
@@ -54,13 +50,13 @@ public class Arm {
         {
             // Going DOWN
             this.controller.setPID(kPDown, kIDown, kDDown);
-            this.controller.setOutputRange(-0.3, 0.4);
+            this.controller.setOutputRange(-0.45, 0.45);
         }
         else
         {
             // Going UP
             this.controller.setPID(kPUp, kIUp, kDUp);
-            this.controller.setOutputRange(-0.45, .5);
+            this.controller.setOutputRange(-0.5, .5);
         }
     }
 
