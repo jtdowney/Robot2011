@@ -47,7 +47,7 @@ public class Drive {
             CANJaguar rearRightMotor,
             Solenoid shiftUpSolenoid,
             Solenoid shiftDownSolenoid) {
-        this(frontLeftMotor, frontRightMotor, rearLeftMotor,
+        this(frontLeftMotor, rearLeftMotor, frontRightMotor,
                 rearRightMotor, shiftUpSolenoid, shiftDownSolenoid, null, null);
     }
 

@@ -9,7 +9,7 @@ public class Robot extends IterativeRobot {
     private static final int kLowPickupPosition = 2;
 
     // autonomous tuning constants
-    private static final double kAutoStraightSpeed = -.45;
+    private static final double kAutoStraightSpeed = -.4;
     private static final double kAutoTurnSpeed = -.3;
     private static final double kAutoLowScale = 0;
     private static final double kAutoHighScale = .4;
@@ -117,7 +117,7 @@ public class Robot extends IterativeRobot {
         this.pickingUp = false;
         this.pickupPosition = kOtherPickupPosition;
 
-        this.drive.shiftDown();
+        this.drive.shiftUp();
         this.tower.raise();
         this.arm.resetPIDController();
         this.arm.resetSpeedLimiter();
@@ -157,6 +157,7 @@ public class Robot extends IterativeRobot {
     private Timer teaTimer = new Timer();   // After we see all 3 sensors on, wait to see if its a branch or the end
     private boolean atTee = false;          // True when we hit the end
     private Timer backAwayTimer = new Timer();  // Wait to back up after placing tube
+    private double time = 0;
 
     public void autonomousPeriodic() {
         this.updateDashboard();
@@ -167,23 +168,33 @@ public class Robot extends IterativeRobot {
             System.out.println("Tea timer expired - atTee true");
         }
 
+        if(counter % 10 == 0)
+            System.out.println("back away: " + backAwayTimer.get());
         if(atTee)
         {
-            if(backAwayTimer.get() == 0) {
+            time = backAwayTimer.get();
+            if(time == 0) {
+                System.out.println("Starting back away timer");
                 this.teaTimer.stop();
                 this.claw.openJaw();
                 this.claw.setCanCloseJaw(false);
                 this.claw.turnDown();
+                this.backAwayTimer.reset();
+                this.backAwayTimer.start();
             }
-            else if(backAwayTimer.get() > .4 && backAwayTimer.get() < .5) {
+            else if(time > .4 && time < .5) {
                 System.out.println("Backing up");
                 this.drive.tankDrive(-kAutoStraightSpeed, -kAutoStraightSpeed);
             }
-            else if(backAwayTimer.get() > .5) {
+            else if(time > .5 && time < 2) {
                 // We've stopped - release the tube
                 System.out.println("lowering arm & backing up");
                 this.arm.setPosition(600);
                 this.drive.tankDrive(-kAutoStraightSpeed, -kAutoStraightSpeed);
+            }
+            else if(time > 2) {
+                System.out.println("Backed up. Stopping.");
+                this.drive.tankDrive(0, 0);
             }
             else {
                 this.drive.tankDrive(0, 0);
@@ -198,6 +209,7 @@ public class Robot extends IterativeRobot {
         {
             if(teaTimer.get() == 0) {
                 System.out.println("Starting tea timer");
+                teaTimer.reset();
                 teaTimer.start();
             }
         }
@@ -246,6 +258,8 @@ public class Robot extends IterativeRobot {
 
         autoTSeen = false;
         if(atTee) {
+            if(counter % 10 == 0)
+                System.out.println("Not moving - atTee true");
             this.drive.tankDrive(0,0);
         }
         else if(left && middle && right) {
@@ -262,7 +276,7 @@ public class Robot extends IterativeRobot {
         }
         else if (left && right) {
             //Fork - go left
-            this.drive.tankDrive(0, kAutoStraightSpeed);
+            this.drive.tankDrive(-kAutoTurnSpeed, kAutoStraightSpeed);
         }
         else if(left && middle) {
             this.drive.tankDrive(kAutoStraightSpeed * kAutoHighScale,
@@ -348,10 +362,10 @@ public class Robot extends IterativeRobot {
     }
     
     private void controlArm() {
-        if (this.counter % 10 == 0) {
-            System.out.println("Current pot value: " + this.arm.getCurrentPosition());
-            System.out.println("        set point: " + this.arm.getTargetPosition() + "\n");
-        }
+//        if (this.counter % 10 == 0) {
+//            System.out.println("Current pot value: " + this.arm.getCurrentPosition());
+//            System.out.println("        set point: " + this.arm.getTargetPosition() + "\n");
+//        }
 
         if (this.rightGamepad.getNumberedButton(10)) {
             System.out.println("cancel pickup");
