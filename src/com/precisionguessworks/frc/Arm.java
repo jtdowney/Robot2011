@@ -4,6 +4,7 @@ import edu.wpi.first.wpilibj.AnalogChannel;
 import edu.wpi.first.wpilibj.CANJaguar;
 import edu.wpi.first.wpilibj.PIDController;
 import edu.wpi.first.wpilibj.PIDOutput;
+import edu.wpi.first.wpilibj.PIDSource;
 import edu.wpi.first.wpilibj.can.CANTimeoutException;
 
 public class Arm {
@@ -26,7 +27,7 @@ public class Arm {
         this.armOutput = new ArmOutput(topMotor, bottomMotor);
         this.controller = new PIDController(kPUp, kIUp, kDUp, armPotentiometer, armOutput);
         this.controller.setOutputRange(-0.5, 0.5);
-        this.controller.setInputRange(200, 750);
+        this.controller.setInputRange(150, 900);
 
         this.controller.enable();
     }
@@ -92,6 +93,16 @@ public class Arm {
         }
         
         return num;
+    }
+
+    public class ArmPID extends PIDController {
+        public ArmPID(double kP, double kI, double kD, PIDSource pidSource, PIDOutput pidOutput) {
+            super(kP, kI, kD, pidSource, pidOutput);
+        }
+
+//        public double getTotalError() {
+//            return this.m_totalError;
+//        }
     }
 
     public class ArmOutput implements PIDOutput {

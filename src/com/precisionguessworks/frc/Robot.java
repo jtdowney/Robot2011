@@ -370,17 +370,25 @@ public class Robot extends IterativeRobot {
         if (this.rightGamepad.getNumberedButton(10)) {
             System.out.println("cancel pickup");
             this.cancelPickup();
+            this.arm.resetPIDInternals();
         }
-        else if(this.rightGamepad.getNumberedButton(1) || this.pickingUp) {
+        else if(this.rightGamepad.getNumberedButton(1)) {
+            this.arm.resetPIDInternals();
+            this.pickup();
+        }
+        else if(this.pickingUp) {
             this.pickup();
         }
         else if(this.rightGamepad.getNumberedButton(2)) {
+            this.arm.resetPIDInternals();
             this.arm.setPosition(330);
         }
         else if (this.rightGamepad.getNumberedButton(3)) {
+            this.arm.resetPIDInternals();
             this.arm.setPosition(450);
         }
         else if (this.rightGamepad.getNumberedButton(4)) {
+            this.arm.resetPIDInternals();
             this.arm.setPosition(615);
         }
     }
@@ -417,12 +425,12 @@ public class Robot extends IterativeRobot {
 
             this.pickupPosition = kOtherPickupPosition;
             this.arm.resetPIDInternals();
-            this.arm.setPosition(325);
+            this.arm.setPosition(330);
 
             System.out.println("Starting pickup, going to medium position");
         }
 
-        if (this.pickupPosition == kOtherPickupPosition && this.arm.getCurrentPosition() >= 305 && this.arm.getCurrentPosition() <= 355) {
+        if (this.pickupPosition == kOtherPickupPosition && this.arm.getCurrentPosition() >= 300 && this.arm.getCurrentPosition() <= 360) {
             // we've reached our medium position, drop the tower
             this.pickupPosition = kMediumPickupPosition;
 
