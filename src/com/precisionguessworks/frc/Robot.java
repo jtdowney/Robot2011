@@ -9,7 +9,7 @@ public class Robot extends IterativeRobot {
     private static final int kLowPickupPosition = 2;
 
     // autonomous tuning constants
-    private static final double kAutoStraightSpeed = -.35;
+    private static final double kAutoStraightSpeed = -.45;
     private static final double kAutoTurnSpeed = -.3;
     private static final double kAutoLowScale = 0;
     private static final double kAutoHighScale = .4;
@@ -41,6 +41,8 @@ public class Robot extends IterativeRobot {
 
     private DigitalInput leftLine, middleLine, rightLine;
     private Solenoid linePower;
+
+    private Servo minibotServo;
 
     public void robotInit() {
         System.out.println("Initializing robot");
@@ -96,8 +98,17 @@ public class Robot extends IterativeRobot {
         this.middleLine = new DigitalInput(2);
         this.rightLine = new DigitalInput(1);
 
+        minibotServo = new Servo(1);
+
         System.out.println("Subsystems initialized");
         System.out.println("Robot initialized");
+    }
+
+    public void cancelPickup() {
+        this.pickingUp = false;
+        this.pickupPosition = kOtherPickupPosition;
+        this.tower.raise();
+        this.claw.closeJaw();
     }
 
     public void reset() {
@@ -113,6 +124,7 @@ public class Robot extends IterativeRobot {
 
         this.claw.closeJaw();
 
+        this.lineFollowReset();
         // turn on photoswitches
         //new Solenoid(8).set(true);
     }
@@ -136,14 +148,15 @@ public class Robot extends IterativeRobot {
         System.out.println("Raising arm.");
         this.arm.setPosition(615);
         atTee = false;
+        drive.shiftUp();
     }
 
     public void autonomousContinuous() {
     }
 
-    private Timer teaTimer = new Timer();
-    private boolean atTee = false;
-    private Timer backAwayTimer = new Timer();
+    private Timer teaTimer = new Timer();   // After we see all 3 sensors on, wait to see if its a branch or the end
+    private boolean atTee = false;          // True when we hit the end
+    private Timer backAwayTimer = new Timer();  // Wait to back up after placing tube
 
     public void autonomousPeriodic() {
         this.updateDashboard();
@@ -156,11 +169,25 @@ public class Robot extends IterativeRobot {
 
         if(atTee)
         {
-            // We've stopped - release the tube
-            this.claw.openJaw();
-            this.teaTimer.stop();
-            this.arm.setPosition(600);
-            this.drive.tankDrive(-kAutoTurnSpeed, -kAutoTurnSpeed);
+            if(backAwayTimer.get() == 0) {
+                this.teaTimer.stop();
+                this.claw.openJaw();
+                this.claw.setCanCloseJaw(false);
+                this.claw.turnDown();
+            }
+            else if(backAwayTimer.get() > .4 && backAwayTimer.get() < .5) {
+                System.out.println("Backing up");
+                this.drive.tankDrive(-kAutoStraightSpeed, -kAutoStraightSpeed);
+            }
+            else if(backAwayTimer.get() > .5) {
+                // We've stopped - release the tube
+                System.out.println("lowering arm & backing up");
+                this.arm.setPosition(600);
+                this.drive.tankDrive(-kAutoStraightSpeed, -kAutoStraightSpeed);
+            }
+            else {
+                this.drive.tankDrive(0, 0);
+            }
         }
         else
         {
@@ -175,7 +202,6 @@ public class Robot extends IterativeRobot {
             }
         }
     }
-
 
     // Teleop mode
     public void teleopInit() {
@@ -192,14 +218,6 @@ public class Robot extends IterativeRobot {
         this.controlDrive();
         this.controlArm();
         this.controlClaw();
-        if(leftLine.get())
-            System.out.println("left");
-        if(middleLine.get())
-            System.out.println("middle");
-        if(rightLine.get())
-            System.out.println("right");
-
-//        this.controlTower();
     }
 
     private boolean autoTSeen = false;
@@ -213,6 +231,10 @@ public class Robot extends IterativeRobot {
         currTurnDir = kNone;
         turnTimer.stop();
         turnTimer.reset();
+        teaTimer.stop();
+        teaTimer.reset();
+        backAwayTimer.stop();
+        backAwayTimer.reset();
         firstTurn = true;
     }
 
@@ -324,18 +346,18 @@ public class Robot extends IterativeRobot {
         
         this.drive.tankDrive(this.leftGamepad.getLeftY(), this.leftGamepad.getRightY());
     }
-
-    // low 330
-    // medium 420
-    // high 635
-    // pickup 300
+    
     private void controlArm() {
         if (this.counter % 10 == 0) {
             System.out.println("Current pot value: " + this.arm.getCurrentPosition());
             System.out.println("        set point: " + this.arm.getTargetPosition() + "\n");
         }
 
-        if (this.rightGamepad.getNumberedButton(1) || this.pickingUp) {
+        if (this.rightGamepad.getNumberedButton(10)) {
+            System.out.println("cancel pickup");
+            this.cancelPickup();
+        }
+        else if(this.rightGamepad.getNumberedButton(1) || this.pickingUp) {
             this.pickup();
         }
         else if(this.rightGamepad.getNumberedButton(2)) {
@@ -347,15 +369,11 @@ public class Robot extends IterativeRobot {
         else if (this.rightGamepad.getNumberedButton(4)) {
             this.arm.setPosition(615);
         }
-
-        // here be dragons
-        //if (this.rightGamepad.getNumberedButton(7)) {
-        //    this.arm.manualDrive(this.rightGamepad.getLeftY() * 0.5);
-        //}
     }
     
     private void controlClaw() {
         if(this.rightGamepad.getNumberedButton(7)) {
+            this.claw.setCanCloseJaw(true);
             this.claw.openJaw();
         }
         else {

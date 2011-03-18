@@ -1,6 +1,7 @@
 package com.precisionguessworks.frc;
 
 import edu.wpi.first.wpilibj.CANJaguar;
+import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.Solenoid;
 import edu.wpi.first.wpilibj.can.CANTimeoutException;
 
@@ -14,6 +15,8 @@ public class Drive {
     private final CANJaguar rearRightMotor;
     private final Solenoid shiftUpSolenoid;
     private final Solenoid shiftDownSolenoid;
+    private final Encoder leftEnc;
+    private final Encoder rightEnc;
 
     public static final boolean kLOW = false;
     public static final boolean kHIGH = true;
@@ -25,22 +28,50 @@ public class Drive {
             CANJaguar frontRightMotor,
             CANJaguar rearRightMotor,
             Solenoid shiftUpSolenoid,
-            Solenoid shiftDownSolenoid) {
+            Solenoid shiftDownSolenoid,
+            Encoder leftEnc,
+            Encoder rightEnc) {
         this.shiftUpSolenoid = shiftUpSolenoid;
         this.shiftDownSolenoid = shiftDownSolenoid;
         this.frontLeftMotor = frontLeftMotor;
         this.rearLeftMotor = rearLeftMotor;
         this.frontRightMotor = frontRightMotor;
         this.rearRightMotor = rearRightMotor;
+        this.leftEnc = leftEnc;
+        this.rightEnc = rightEnc;
     }
 
-    public Drive(
-            CANJaguar leftMotor,
-            CANJaguar rightMotor,
+    public Drive(CANJaguar frontLeftMotor,
+            CANJaguar rearLeftMotor,
+            CANJaguar frontRightMotor,
+            CANJaguar rearRightMotor,
             Solenoid shiftUpSolenoid,
-            Solenoid shiftDownSolenoid)
-    {
-        this(leftMotor, leftMotor, rightMotor, rightMotor, shiftUpSolenoid, shiftDownSolenoid);
+            Solenoid shiftDownSolenoid) {
+        this(frontLeftMotor, frontRightMotor, rearLeftMotor,
+                rearRightMotor, shiftUpSolenoid, shiftDownSolenoid, null, null);
+    }
+
+//    public Drive(
+//            CANJaguar leftMotor,
+//            CANJaguar rightMotor,
+//            Solenoid shiftUpSolenoid,
+//            Solenoid shiftDownSolenoid)
+//    {
+//        this(leftMotor, leftMotor, rightMotor, rightMotor, shiftUpSolenoid, shiftDownSolenoid);
+//    }
+
+    public int getLeftClicks() {
+        if(this.leftEnc != null)
+            return this.leftEnc.get();
+        else
+            return 0;
+    }
+
+    public int getRightClicks() {
+        if(this.rightEnc != null)
+            return this.rightEnc.get();
+        else
+            return 0;
     }
 
     public void invert() {

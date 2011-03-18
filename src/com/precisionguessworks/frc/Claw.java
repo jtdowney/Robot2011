@@ -11,6 +11,8 @@ public class Claw {
     private Solenoid jawOpen;
     private Solenoid jawClose;
 
+    private boolean canCloseJaw = true;
+
     public Claw(DigitalInput bumpSwitch, Relay topClawRelay, Relay bottomClawRelay, 
             Solenoid jawOpen, Solenoid jawClose) {
         this.bumpSwitch = bumpSwitch;
@@ -20,6 +22,13 @@ public class Claw {
         this.jawClose = jawClose;
     }
 
+    public void setCanCloseJaw(boolean b) {
+        this.canCloseJaw = b;
+    }
+
+    public boolean getCanCloseJaw() {
+        return this.canCloseJaw;
+    }
 
     public boolean isHoldingTube() {
         return !this.bumpSwitch.get();
@@ -51,8 +60,10 @@ public class Claw {
     }
 
     public void closeJaw() {
-        this.jawClose.set(true);
-        this.jawOpen.set(false);
+        if(this.canCloseJaw) {
+            this.jawClose.set(true);
+            this.jawOpen.set(false);
+        }
     }
 
     public void openJaw() {
