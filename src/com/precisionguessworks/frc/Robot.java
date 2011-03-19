@@ -38,11 +38,12 @@ public class Robot extends IterativeRobot {
     private Arm arm;
     private Drive drive;
     private Compressor compressor;
+    private Minibot minibot;
 
     private DigitalInput leftLine, middleLine, rightLine;
-    private Solenoid linePower;
+//    private Solenoid linePower;
+    
 
-    private Servo minibotServo;
 
     public void robotInit() {
         System.out.println("Initializing robot");
@@ -88,17 +89,17 @@ public class Robot extends IterativeRobot {
         this.arm = new Arm(new AnalogChannel(3), topArmMotor, bottomArmMotor);
         this.tower = new Tower(new Solenoid(1), new Solenoid(2));
         this.drive = new Drive(frontLeftMotor, rearLeftMotor, frontRightMotor, rearRightMotor, new Solenoid(3), new Solenoid(4));
+        this.minibot = new Minibot(new Solenoid(7), new Solenoid(8));
 
         this.compressor = new Compressor(5, 3);
         this.compressor.start();
 
-        linePower = new Solenoid(8);
-        linePower.set(true);
+//        linePower = new Solenoid(8);
+//        linePower.set(true);
         this.leftLine = new DigitalInput(3);
         this.middleLine = new DigitalInput(2);
         this.rightLine = new DigitalInput(1);
 
-        minibotServo = new Servo(1);
 
         System.out.println("Subsystems initialized");
         System.out.println("Robot initialized");
@@ -121,6 +122,7 @@ public class Robot extends IterativeRobot {
         this.tower.raise();
         this.arm.resetPIDController();
         this.arm.resetSpeedLimiter();
+        this.minibot.undeploy();
 
         this.claw.closeJaw();
 
@@ -390,6 +392,10 @@ public class Robot extends IterativeRobot {
         else if (this.rightGamepad.getNumberedButton(4)) {
             this.arm.resetPIDInternals();
             this.arm.setPosition(615);
+        }
+
+        if(this.rightGamepad.getNumberedButton(9)) {
+            this.minibot.deploy();
         }
     }
     
