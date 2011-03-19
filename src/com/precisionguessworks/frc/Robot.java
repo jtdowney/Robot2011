@@ -41,6 +41,7 @@ public class Robot extends IterativeRobot {
     private Minibot minibot;
 
     private DigitalInput leftLine, middleLine, rightLine;
+    private DriverStationLCD lcd = DriverStationLCD.getInstance();
 //    private Solenoid linePower;
     
 
@@ -80,6 +81,8 @@ public class Robot extends IterativeRobot {
                 break;
             } catch (CANTimeoutException exception) {
                 System.out.println("CAN Timeout");
+                lcd.println(DriverStationLCD.Line.kMain6, 1, "CAN Timeout!!!");
+                lcd.updateLCD();
             }
         }
         
@@ -103,6 +106,8 @@ public class Robot extends IterativeRobot {
 
         System.out.println("Subsystems initialized");
         System.out.println("Robot initialized");
+        lcd.println(DriverStationLCD.Line.kUser2, 1, "Robot intialized");
+        lcd.updateLCD();
     }
 
     public void cancelPickup() {
@@ -113,7 +118,6 @@ public class Robot extends IterativeRobot {
     }
 
     public void reset() {
-//        this.counter = 0;
         this.shiftButtonPressed = false;
         this.pickingUp = false;
         this.pickupPosition = kOtherPickupPosition;
@@ -232,6 +236,7 @@ public class Robot extends IterativeRobot {
         this.controlDrive();
         this.controlArm();
         this.controlClaw();
+        this.arm.schedule();
     }
 
     private boolean autoTSeen = false;
@@ -391,7 +396,7 @@ public class Robot extends IterativeRobot {
         }
         else if (this.rightGamepad.getNumberedButton(4)) {
             this.arm.resetPIDInternals();
-            this.arm.setPosition(615);
+            this.arm.setPosition(635);
         }
 
         if(this.rightGamepad.getNumberedButton(9)) {
@@ -483,7 +488,7 @@ public class Robot extends IterativeRobot {
     private void writeArmData() {
         final String output =
                 (this.counter++) + "," +
-                this.arm.getTargetPosition() + "," +
+                this.arm.getSetpoint() + "," +
                 this.arm.getCurrentPosition() + "," +
                 (Math.abs(this.arm.getCurrentSpeed()) < .001 ? 0 : this.arm.getCurrentSpeed());
 

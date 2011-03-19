@@ -5,7 +5,6 @@ import edu.wpi.first.wpilibj.CANJaguar;
 import edu.wpi.first.wpilibj.PIDController;
 import edu.wpi.first.wpilibj.PIDOutput;
 import edu.wpi.first.wpilibj.PIDSource;
-import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.can.CANTimeoutException;
 
 public class Arm {
@@ -17,14 +16,15 @@ public class Arm {
     public static final double kIDown = .00001;
     public static final double kDDown = .00002;
 
-    public static final int kMaxSetpointDelta = 3;      // units of (points*10^2)/sec
+    public static final int kMaxSetpointDelta = 10;      // units of (points*10^2)/sec
 
     private final AnalogChannel armPotentiometer;
     private final ArmOutput armOutput;
     private final PIDController controller;
 
     private int lastPosition = 0;
-    private Timer scheduler;
+    private int targetPosition = 0;
+    private int position = 0;
 
     public Arm(AnalogChannel armPotentiometer, CANJaguar topMotor, CANJaguar bottomMotor) {
         this.armPotentiometer = armPotentiometer;
@@ -34,7 +34,7 @@ public class Arm {
         this.controller.setInputRange(150, 900);
 
         this.controller.enable();
-        scheduler = new Timer();
+        this.targetPosition = this.getCurrentPosition();
     }
     
     public int getCurrentPosition() {
@@ -42,43 +42,57 @@ public class Arm {
     }
 
     public int getTargetPosition() {
+        return (int) this.targetPosition;
+    }
+
+    public int getSetpoint() {
         return (int) this.controller.getSetpoint();
     }
 
     public void holdPosition() {
-        this.setPosition(this.getCurrentPosition());
+        System.out.println("hold position: " + this.getCurrentPosition());
+        this.setRawPosition(this.getCurrentPosition());
+    }
+
+    public void schedule() {
+        position = this.getTargetPosition();
+        lastPosition = this.getRawPosition();
+        System.out.println("scheduler: " + position + ", " + lastPosition);
+
+        if(position - lastPosition > 0) {
+            // INCREASING
+            if(position - lastPosition > kMaxSetpointDelta) {
+                System.out.println("Would be scheduled to " + (lastPosition + kMaxSetpointDelta));
+                System.out.println("   instead of: " + position);
+                position = lastPosition + kMaxSetpointDelta;
+            }
+        }
+        else if (lastPosition - position > 0) {
+            // DECREASING
+            if(lastPosition - position > kMaxSetpointDelta) {
+                System.out.println("Would be scheduled to " + (lastPosition - kMaxSetpointDelta));
+                System.out.println("   instead of: " + position);
+                position = lastPosition - kMaxSetpointDelta;
+            }
+        }
+        this.setRawPosition(position);
     }
 
     private int time;
-    public void setPosition(int position) {
-        this.lastPosition = ((int)this.controller.getSetpoint());
 
-//        //Setpoint scheduling
-//        time = (int)(scheduler.get() * 100);
-//        if(time > 0) {
-//            if(position - lastPosition > 0) {
-//                // INCREASING
-//                if(position - lastPosition > kMaxSetpointDelta / time) {
-//                    System.out.println("Would be scheduled to " + (lastPosition + kMaxSetpointDelta));
-//                    System.out.println("   instead of: " + position);
-////                    position = lastPosition + kMaxSetpointDelta;
-//                }
-//            }
-//            else if (lastPosition - position > 0) {
-//                // DECREASING
-//                if(lastPosition - position > kMaxSetpointDelta / time) {
-//                    System.out.println("Would be scheduled to " + (lastPosition - kMaxSetpointDelta));
-//                    System.out.println("   instead of: " + position);
-////                    position = lastPosition - kMaxSetpointDelta;
-//                }
-//            }
-//        }
-//
-//        scheduler.reset();
-//        scheduler.start();
-
+    public void setRawPosition(int position) {
         this.controller.setSetpoint(position);
-        if (this.lastPosition > position)
+    }
+
+    public int getRawPosition() {
+        return (int)this.controller.getSetpoint();
+    }
+
+    public void setPosition(int position) {
+        this.targetPosition = position;
+        System.out.println("target position: " + position);
+
+        if (this.targetPosition > position)
         {
             // Going DOWN
             this.controller.setPID(kPDown, kIDown, kDDown);
