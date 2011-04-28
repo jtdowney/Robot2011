@@ -18,7 +18,7 @@ public class Arm {
     public static final double kIDown = .000013;
     public static final double kDDown = .00002;
 
-    public static final double kPStable = 0.008;
+    public static final double kPStable = 0.006;
     public static final double kIStable = 0.000075;
     public static final double kDStable = .000022;
 
@@ -67,7 +67,12 @@ public class Arm {
 
         // If we aren't moving and not too far off, bump up the power!
         if(Math.abs(prevPosition - lastPosition) < 3 && Math.abs(lastPosition - position)  < 40) {
-            this.controller.setPID(kPStable, kIStable, kDStable);
+            if(lastPosition > 500) {
+                this.controller.setPID(kPStable / 3, kIStable, kDStable);
+            }
+            else {
+                this.controller.setPID(kPStable, kIStable, kDStable);
+            }
             this.controller.setOutputRange(-0.5, .5);
             System.out.println("using stable pid.");
         }
