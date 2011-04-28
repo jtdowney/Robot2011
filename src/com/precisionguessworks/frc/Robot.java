@@ -156,6 +156,7 @@ public class Robot extends IterativeRobot {
 
     public void disabledPeriodic() {
         this.updateDashboard();
+        this.arm.holdPosition();
     }
 
     // Autonomous mode
@@ -186,27 +187,32 @@ public class Robot extends IterativeRobot {
         {
             time = backAwayTimer.get();
             if(time == 0) {
+                this.drive.tankDrive(0, 0);
                 writeAutonData("Starting back away timer.");
                 System.out.println("Starting back away timer");
-                this.claw.openJaw();
-                this.claw.setCanCloseJaw(false);
-                this.claw.turnDown();
                 this.backAwayTimer.reset();
                 this.backAwayTimer.start();
             }
-            else if(time > .4 && time < .5) {
+            if(time > 1 && time < 1.1) {
+                System.out.println("Releasing tube");
+                writeAutonData("Releasing tube");
+                this.claw.openJaw();
+                this.claw.setCanCloseJaw(false);
+                this.claw.turnDown();
+            }
+            else if(time > 1.9 && time < 2) {
                 writeAutonData("Backing up");
                 System.out.println("Backing up");
                 this.drive.tankDrive(-kAutoStraightSpeed, -kAutoStraightSpeed);
             }
-            else if(time > .5 && time < 2) {
+            else if(time > 2 && time < 3.5) {
                 // We've stopped - release the tube
                 writeAutonData("lowering arm & backing up");
                 System.out.println("lowering arm & backing up");
-                this.arm.setPosition(400);
+                this.arm.setPosition(450);
                 this.drive.tankDrive(-kAutoStraightSpeed, -kAutoStraightSpeed);
             }
-            else if(time > 2) {
+            else if(time > 3.5) {
                 writeAutonData("Backed up. Stopping.");
                 System.out.println("Backed up. Stopping.");
                 this.drive.tankDrive(0, 0);
@@ -217,6 +223,7 @@ public class Robot extends IterativeRobot {
         }
         else
         {
+            this.claw.stop();
             this.arm.setPosition(465);
             this.followLine();
         }
@@ -525,7 +532,7 @@ public class Robot extends IterativeRobot {
     }
 
     private void writeAutonData(final String out) {
-        this.autonDataFile.writeln("(" + System.currentTimeMillis() + "): " + out);
+//        this.autonDataFile.writeln("(" + System.currentTimeMillis() + "): " + out);
     }
 
     // <editor-fold defaultstate="collapsed" desc="Dashboard Update">
