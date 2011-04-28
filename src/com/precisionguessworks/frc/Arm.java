@@ -74,19 +74,19 @@ public class Arm {
                 this.controller.setPID(kPStable, kIStable, kDStable);
             }
             this.controller.setOutputRange(-0.5, .5);
-            System.out.println("using stable pid.");
+//            System.out.println("using stable pid.");
         }
         else if (position > lastPosition) {
             //GOING UP
             this.controller.setPID(kPUp, kIUp, kDUp);
             this.controller.setOutputRange(-0.5, .5);
-            System.out.println("up pid");
+//            System.out.println("up pid");
         }
         else {
             //GOING DOWN
             this.controller.setPID(kPDown, kIDown, kDDown);
             this.controller.setOutputRange(-0.45, 0.45);
-            System.out.println("down pid");
+//            System.out.println("down pid");
         }
 //        System.out.println("scheduler: " + position + ", " + lastPosition);
 

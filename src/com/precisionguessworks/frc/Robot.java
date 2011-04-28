@@ -25,6 +25,7 @@ public class Robot extends IterativeRobot {
     // state
     private long counter;
     private DataFile armDataFile;
+    private DataFile autonDataFile;
     private boolean shiftButtonPressed = false;
     private boolean pickingUp = false;
     private Timer pickupTimer = new Timer();
@@ -58,6 +59,12 @@ public class Robot extends IterativeRobot {
             this.armDataFile.writeln("time,setpoint,value,drive");
         } catch (Exception exception) {
             System.out.println("Unable to open data file for writing");
+        }
+
+        try {
+            this.autonDataFile = new DataFile("auton_log");
+        } catch (Exception exception) {
+            System.out.println("Unable to open auton file for writing");
         }
 
         this.driverGamepad = new Gamepad(1);
@@ -103,9 +110,9 @@ public class Robot extends IterativeRobot {
 
 //        linePower = new Solenoid(8);
 //        linePower.set(true);
-        this.leftLine = new DigitalInput(3);
+        this.leftLine = new DigitalInput(1);
         this.middleLine = new DigitalInput(2);
-        this.rightLine = new DigitalInput(1);
+        this.rightLine = new DigitalInput(3);
 
 
         System.out.println("Subsystems initialized");
@@ -156,7 +163,8 @@ public class Robot extends IterativeRobot {
         this.reset();
         this.lineFollowReset();
         System.out.println("Raising arm.");
-        this.arm.setPosition(415 + 50);
+        writeAutonData("Raising arm.");
+        this.arm.setPosition(465);
         atTee = false;
         drive.shiftUp();
     }
@@ -164,28 +172,22 @@ public class Robot extends IterativeRobot {
     public void autonomousContinuous() {
     }
 
-    private Timer teaTimer = new Timer();   // After we see all 3 sensors on, wait to see if its a branch or the end
+//    private Timer teaTimer = new Timer();   // After we see all 3 sensors on, wait to see if its a branch or the end
     private boolean atTee = false;          // True when we hit the end
     private Timer backAwayTimer = new Timer();  // Wait to back up after placing tube
     private double time = 0;
 
     public void autonomousPeriodic() {
         this.updateDashboard();
+        this.arm.schedule();
         this.writeArmData();
-        
-        if(teaTimer.get() > .1 && this.autoTSeen) {
-            atTee = true;
-            System.out.println("Tea timer expired - atTee true");
-        }
 
-        if(counter % 10 == 0)
-            System.out.println("back away: " + backAwayTimer.get());
         if(atTee)
         {
             time = backAwayTimer.get();
             if(time == 0) {
+                writeAutonData("Starting back away timer.");
                 System.out.println("Starting back away timer");
-                this.teaTimer.stop();
                 this.claw.openJaw();
                 this.claw.setCanCloseJaw(false);
                 this.claw.turnDown();
@@ -193,16 +195,19 @@ public class Robot extends IterativeRobot {
                 this.backAwayTimer.start();
             }
             else if(time > .4 && time < .5) {
+                writeAutonData("Backing up");
                 System.out.println("Backing up");
                 this.drive.tankDrive(-kAutoStraightSpeed, -kAutoStraightSpeed);
             }
             else if(time > .5 && time < 2) {
                 // We've stopped - release the tube
+                writeAutonData("lowering arm & backing up");
                 System.out.println("lowering arm & backing up");
                 this.arm.setPosition(400);
                 this.drive.tankDrive(-kAutoStraightSpeed, -kAutoStraightSpeed);
             }
             else if(time > 2) {
+                writeAutonData("Backed up. Stopping.");
                 System.out.println("Backed up. Stopping.");
                 this.drive.tankDrive(0, 0);
             }
@@ -212,16 +217,8 @@ public class Robot extends IterativeRobot {
         }
         else
         {
+            this.arm.setPosition(465);
             this.followLine();
-        }
-
-        if(this.autoTSeen)
-        {
-            if(teaTimer.get() == 0) {
-                System.out.println("Starting tea timer");
-                teaTimer.reset();
-                teaTimer.start();
-            }
         }
     }
 
@@ -242,49 +239,44 @@ public class Robot extends IterativeRobot {
         this.controlClaw();
         this.controlMinibot();
         this.arm.schedule();
+
+        boolean left = leftLine.get();
+        boolean middle = middleLine.get();
+        boolean right = rightLine.get();
+        System.out.println("line: " + left + " " + middle + " " + right);
     }
 
-    private boolean autoTSeen = false;
     private int currTurnDir = kNone;
     private Timer turnTimer = new Timer();
     private boolean firstTurn = true;      //True when we are doing the first turn to re-find the line
 
     private void lineFollowReset()
     {
-        autoTSeen = false;
+        atTee = false;
         currTurnDir = kNone;
         turnTimer.stop();
         turnTimer.reset();
-        teaTimer.stop();
-        teaTimer.reset();
         backAwayTimer.stop();
         backAwayTimer.reset();
         firstTurn = true;
     }
 
     private void followLine() {
+
         // Follow a line
         boolean left = leftLine.get();
         boolean middle = middleLine.get();
         boolean right = rightLine.get();
 
-        autoTSeen = false;
+        writeAutonData("line: " + left + middle + right);
+
         if(atTee) {
             if(counter % 10 == 0)
                 System.out.println("Not moving - atTee true");
             this.drive.tankDrive(0,0);
         }
         else if(left && middle && right) {
-            autoTSeen = true;
-            if(!atTee) {
-                System.out.println("Hunting for tee");
-                this.drive.tankDrive(kAutoTurnSpeed, kAutoTurnSpeed);
-            }
-            else {
-                //If all three are triggered, we have reached the T at the end of the line
-                this.drive.tankDrive(0, 0);
-                System.out.println("T seen - not moving.");
-            }
+            atTee = true;
         }
         else if (left && right) {
             //Fork - go left
@@ -317,11 +309,7 @@ public class Robot extends IterativeRobot {
             System.out.println("Going right");
         }
         else {
-            if (teaTimer.get() > 0 && lineLastSeen == kNone) {
-                this.atTee = true;
-                System.out.println("special Tee");
-            }
-            else if(currTurnDir == kNone) {
+            if(currTurnDir == kNone) {
                 System.out.print("Starting turn: ");
                 turnTimer.reset();
                 turnTimer.start();
@@ -414,7 +402,13 @@ public class Robot extends IterativeRobot {
             }
             else if (this.operatorGamepad.getNumberedButton(4)) {
                 this.arm.resetPIDInternals();
-                this.arm.setPosition(435 + circleOffset);
+                if(circleOffset > 0) {
+                    this.arm.setPosition(435 + circleOffset - 5);
+                }
+                else {
+                    this.arm.setPosition(435);
+                }
+                
             }
         }
         
@@ -528,6 +522,10 @@ public class Robot extends IterativeRobot {
 
         this.armDataFile.writeln(output);
         //System.out.println(output);
+    }
+
+    private void writeAutonData(final String out) {
+        this.autonDataFile.writeln("(" + System.currentTimeMillis() + "): " + out);
     }
 
     // <editor-fold defaultstate="collapsed" desc="Dashboard Update">
