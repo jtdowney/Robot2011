@@ -8,6 +8,8 @@ import edu.wpi.first.wpilibj.PIDSource;
 import edu.wpi.first.wpilibj.can.CANTimeoutException;
 
 public class Arm {
+    public static final int kBaseValue = 200;
+    
     public static final double kPUp = 0.004;
     public static final double kIUp = 0.00006;
     public static final double kDUp = .00002;
@@ -89,10 +91,12 @@ public class Arm {
     }
 
     public void setPosition(int position) {
-        this.targetPosition = position;
-        System.out.println("target position: " + position);
+        int newPosition = kBaseValue + position;
+        
+        this.targetPosition = newPosition;
+        System.out.println("target position: " + newPosition);
 
-        if (this.targetPosition > position)
+        if (this.targetPosition > newPosition)
         {
             // Going DOWN
             this.controller.setPID(kPDown, kIDown, kDDown);

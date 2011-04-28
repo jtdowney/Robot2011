@@ -4,6 +4,8 @@ import edu.wpi.first.wpilibj.*;
 import edu.wpi.first.wpilibj.can.CANTimeoutException;
 
 public class Robot extends IterativeRobot {
+    private static final int kArmBaseValue = 200;
+    
     private static final int kOtherPickupPosition = 0;
     private static final int kMediumPickupPosition = 1;
     private static final int kLowPickupPosition = 2;
@@ -29,8 +31,8 @@ public class Robot extends IterativeRobot {
     private int pickupPosition = kOtherPickupPosition;
 
     // inputs
-    private Gamepad leftGamepad;
-    private Gamepad rightGamepad;
+    private Gamepad driverGamepad;
+    private Gamepad operatorGamepad;
 
     // subsystems
     private Claw claw;
@@ -43,6 +45,8 @@ public class Robot extends IterativeRobot {
     private DigitalInput leftLine, middleLine, rightLine;
     private DriverStationLCD lcd = DriverStationLCD.getInstance();
 //    private Solenoid linePower;
+    private boolean cancellingPickup;
+    private boolean pickupButtonReleased;
     
 
 
@@ -56,8 +60,8 @@ public class Robot extends IterativeRobot {
             System.out.println("Unable to open data file for writing");
         }
 
-        this.leftGamepad = new Gamepad(1);
-        this.rightGamepad = new Gamepad(2);
+        this.driverGamepad = new Gamepad(1);
+        this.operatorGamepad = new Gamepad(2);
 
         System.out.println("Initializing subsystems");
 
@@ -92,7 +96,7 @@ public class Robot extends IterativeRobot {
         this.arm = new Arm(new AnalogChannel(3), topArmMotor, bottomArmMotor);
         this.tower = new Tower(new Solenoid(1), new Solenoid(2));
         this.drive = new Drive(frontLeftMotor, rearLeftMotor, frontRightMotor, rearRightMotor, new Solenoid(3), new Solenoid(4));
-        this.minibot = new Minibot(new Solenoid(7), new Solenoid(8));
+        this.minibot = new Minibot(new Solenoid(7), new Solenoid(8), new Servo(1));
 
         this.compressor = new Compressor(5, 3);
         this.compressor.start();
@@ -152,7 +156,7 @@ public class Robot extends IterativeRobot {
         this.reset();
         this.lineFollowReset();
         System.out.println("Raising arm.");
-        this.arm.setPosition(615);
+        this.arm.setPosition(415);
         atTee = false;
         drive.shiftUp();
     }
@@ -195,7 +199,7 @@ public class Robot extends IterativeRobot {
             else if(time > .5 && time < 2) {
                 // We've stopped - release the tube
                 System.out.println("lowering arm & backing up");
-                this.arm.setPosition(600);
+                this.arm.setPosition(400);
                 this.drive.tankDrive(-kAutoStraightSpeed, -kAutoStraightSpeed);
             }
             else if(time > 2) {
@@ -236,6 +240,7 @@ public class Robot extends IterativeRobot {
         this.controlDrive();
         this.controlArm();
         this.controlClaw();
+        this.controlMinibot();
         this.arm.schedule();
     }
 
@@ -353,7 +358,7 @@ public class Robot extends IterativeRobot {
     }
 
     private void controlDrive() {
-        if (this.leftGamepad.getNumberedButton(8))
+        if (this.driverGamepad.getNumberedButton(8))
         {
             if (!this.shiftButtonPressed) {
                 this.drive.toggleShift();
@@ -365,7 +370,7 @@ public class Robot extends IterativeRobot {
             this.shiftButtonPressed = false;
         }
         
-        this.drive.tankDrive(this.leftGamepad.getLeftY(), this.leftGamepad.getRightY());
+        this.drive.tankDrive(this.driverGamepad.getLeftY(), this.driverGamepad.getRightY());
     }
     
     private void controlArm() {
@@ -374,38 +379,53 @@ public class Robot extends IterativeRobot {
 //            System.out.println("        set point: " + this.arm.getTargetPosition() + "\n");
 //        }
 
-        if (this.rightGamepad.getNumberedButton(10)) {
-            System.out.println("cancel pickup");
-            this.cancelPickup();
-            this.arm.resetPIDInternals();
+        int circleOffset = 0;
+        if (this.operatorGamepad.getNumberedButton(5)) {
+            circleOffset = 50;
         }
-        else if(this.rightGamepad.getNumberedButton(1)) {
-            this.arm.resetPIDInternals();
+        
+        if (this.operatorGamepad.getNumberedButton(1)){
+            if(!this.pickingUp) {
+                System.out.println("Starting pickup.");
+                this.arm.resetPIDInternals();
+                this.pickup();
+                this.cancellingPickup = false;
+                this.pickupButtonReleased = false;
+            }
+            else if(this.pickupButtonReleased && !this.cancellingPickup) {                
+                System.out.println("cancel pickup");
+                this.cancelPickup();
+                this.arm.resetPIDInternals();
+                this.cancellingPickup = true;
+            }
+        } else {
+            this.pickupButtonReleased = true;
+            
+            if(this.operatorGamepad.getNumberedButton(2)) {
+                this.arm.resetPIDInternals();
+                this.arm.setPosition(130 + circleOffset);
+            }
+            else if (this.operatorGamepad.getNumberedButton(3)) {
+                this.arm.resetPIDInternals();
+                this.arm.setPosition(250 + circleOffset);
+            }
+            else if (this.operatorGamepad.getNumberedButton(4)) {
+                this.arm.resetPIDInternals();
+                this.arm.setPosition(435 + circleOffset);
+            }
+        }
+        
+        if(this.pickingUp) {
             this.pickup();
         }
-        else if(this.pickingUp) {
-            this.pickup();
-        }
-        else if(this.rightGamepad.getNumberedButton(2)) {
-            this.arm.resetPIDInternals();
-            this.arm.setPosition(330);
-        }
-        else if (this.rightGamepad.getNumberedButton(3)) {
-            this.arm.resetPIDInternals();
-            this.arm.setPosition(450);
-        }
-        else if (this.rightGamepad.getNumberedButton(4)) {
-            this.arm.resetPIDInternals();
-            this.arm.setPosition(635);
-        }
-
-        if(this.rightGamepad.getNumberedButton(9)) {
+        
+        if(this.driverGamepad.getNumberedButton(10)) {
             this.minibot.deploy();
         }
     }
     
     private void controlClaw() {
-        if(this.rightGamepad.getNumberedButton(7)) {
+        if(this.operatorGamepad.getNumberedButton(10)) {
             this.claw.setCanCloseJaw(true);
             this.claw.openJaw();
         }
@@ -414,18 +434,29 @@ public class Robot extends IterativeRobot {
         }
 
 
-        if (this.rightGamepad.getNumberedButton(5)) {
+        if (this.operatorGamepad.getNumberedButton(5)) {
             this.claw.pushOut();
-        } else if (this.rightGamepad.getNumberedButton(6)) {
+        } else if (this.operatorGamepad.getNumberedButton(6)) {
             this.claw.turnUp();
-        } else if (this.rightGamepad.getNumberedButton(7)) {
+        } else if (this.operatorGamepad.getNumberedButton(7)) {
             this.claw.pushOut();
-        } else if (this.rightGamepad.getNumberedButton(8)) {
+        } else if (this.operatorGamepad.getNumberedButton(8)) {
             this.claw.turnDown();
         } else if (this.claw.isHoldingTube()) {
             this.claw.stop();
         } else {
             this.claw.pullIn();
+        }
+    }
+    
+    private void controlMinibot() {
+        if(this.operatorGamepad.getDPad() == Gamepad.DPadDirection.kLeft) {
+            System.out.println("minibot drop arm");
+            this.minibot.dropArm();
+        }
+        else if(this.operatorGamepad.getDPad() == Gamepad.DPadDirection.kRight) {
+            System.out.println("minibot reset arm");
+            this.minibot.resetArm();
         }
     }
 
@@ -436,7 +467,7 @@ public class Robot extends IterativeRobot {
 
             this.pickupPosition = kOtherPickupPosition;
             this.arm.resetPIDInternals();
-            this.arm.setPosition(330);
+            this.arm.setPosition(130);
 
             System.out.println("Starting pickup, going to medium position");
         }
@@ -463,13 +494,13 @@ public class Robot extends IterativeRobot {
             System.out.println("Going to lower position");
 
             if (this.claw.isHoldingTube()) {
-                this.arm.setPosition(235);
+                this.arm.setPosition(35);
                 // we're holding a tube in the lowest position, our work here is done
                 this.pickingUp = false;
 
                 System.out.println("I haz a tube");
             } else {
-                this.arm.setPosition(295);
+                this.arm.setPosition(95);
                 System.out.println("I can haz tube?");
             }
         }
@@ -572,4 +603,6 @@ public class Robot extends IterativeRobot {
         lowDashData.finalizeCluster();
         lowDashData.commit();
     }// </editor-fold>
+
+    
 }
