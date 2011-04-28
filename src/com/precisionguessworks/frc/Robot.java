@@ -156,7 +156,7 @@ public class Robot extends IterativeRobot {
         this.reset();
         this.lineFollowReset();
         System.out.println("Raising arm.");
-        this.arm.setPosition(415);
+        this.arm.setPosition(415 + 50);
         atTee = false;
         drive.shiftUp();
     }
@@ -374,10 +374,10 @@ public class Robot extends IterativeRobot {
     }
     
     private void controlArm() {
-//        if (this.counter % 10 == 0) {
-//            System.out.println("Current pot value: " + this.arm.getCurrentPosition());
-//            System.out.println("        set point: " + this.arm.getTargetPosition() + "\n");
-//        }
+        if (this.counter % 2 == 0) {
+            System.out.println("Current pot value: " + this.arm.getCurrentPosition());
+            System.out.println("        set point: " + this.arm.getTargetPosition() + "\n");
+        }
 
         int circleOffset = 0;
         if (this.operatorGamepad.getNumberedButton(5)) {
@@ -385,25 +385,28 @@ public class Robot extends IterativeRobot {
         }
         
         if (this.operatorGamepad.getNumberedButton(1)){
-            if(!this.pickingUp) {
-                System.out.println("Starting pickup.");
-                this.arm.resetPIDInternals();
-                this.pickup();
-                this.cancellingPickup = false;
-                this.pickupButtonReleased = false;
-            }
-            else if(this.pickupButtonReleased && !this.cancellingPickup) {                
-                System.out.println("cancel pickup");
-                this.cancelPickup();
-                this.arm.resetPIDInternals();
-                this.cancellingPickup = true;
+            if(this.pickupButtonReleased) {
+                if(!this.pickingUp) {
+                    System.out.println("Starting pickup.");
+                    this.arm.resetPIDInternals();
+                    this.pickup();
+                    this.cancellingPickup = false;
+                    this.pickupButtonReleased = false;
+                }
+                else if(this.pickupButtonReleased && !this.cancellingPickup) {
+                    System.out.println("cancel pickup");
+                    this.cancelPickup();
+                    this.arm.resetPIDInternals();
+                    this.cancellingPickup = true;
+                    this.pickupButtonReleased = false;
+                }
             }
         } else {
             this.pickupButtonReleased = true;
             
             if(this.operatorGamepad.getNumberedButton(2)) {
                 this.arm.resetPIDInternals();
-                this.arm.setPosition(130 + circleOffset);
+                this.arm.setPosition(120 + circleOffset);
             }
             else if (this.operatorGamepad.getNumberedButton(3)) {
                 this.arm.resetPIDInternals();
@@ -434,9 +437,9 @@ public class Robot extends IterativeRobot {
         }
 
 
-        if (this.operatorGamepad.getNumberedButton(5)) {
-            this.claw.pushOut();
-        } else if (this.operatorGamepad.getNumberedButton(6)) {
+//        if (this.operatorGamepad.getNumberedButton(5)) {
+//            this.claw.pushOut();
+        if (this.operatorGamepad.getNumberedButton(6)) {
             this.claw.turnUp();
         } else if (this.operatorGamepad.getNumberedButton(7)) {
             this.claw.pushOut();

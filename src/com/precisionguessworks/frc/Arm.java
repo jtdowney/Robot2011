@@ -11,12 +11,16 @@ public class Arm {
     public static final int kBaseValue = 200;
     
     public static final double kPUp = 0.004;
-    public static final double kIUp = 0.00006;
+    public static final double kIUp = 0.00007;
     public static final double kDUp = .00002;
 
     public static final double kPDown = 0.001;
-    public static final double kIDown = .00001;
+    public static final double kIDown = .000013;
     public static final double kDDown = .00002;
+
+    public static final double kPStable = 0.008;
+    public static final double kIStable = 0.000075;
+    public static final double kDStable = .000022;
 
     public static final int kMaxSetpointDelta = 10;      // units of (points*10^2)/sec
 
@@ -27,6 +31,7 @@ public class Arm {
     private int lastPosition = 0;
     private int targetPosition = 0;
     private int position = 0;
+    private int prevPosition = 0;
 
     public Arm(AnalogChannel armPotentiometer, CANJaguar topMotor, CANJaguar bottomMotor) {
         this.armPotentiometer = armPotentiometer;
@@ -59,25 +64,45 @@ public class Arm {
     public void schedule() {
         position = this.getTargetPosition();
         lastPosition = this.getRawPosition();
-        System.out.println("scheduler: " + position + ", " + lastPosition);
+
+        // If we aren't moving and not too far off, bump up the power!
+        if(Math.abs(prevPosition - lastPosition) < 3 && Math.abs(lastPosition - position)  < 40) {
+            this.controller.setPID(kPStable, kIStable, kDStable);
+            this.controller.setOutputRange(-0.5, .5);
+            System.out.println("using stable pid.");
+        }
+        else if (position > lastPosition) {
+            //GOING UP
+            this.controller.setPID(kPUp, kIUp, kDUp);
+            this.controller.setOutputRange(-0.5, .5);
+            System.out.println("up pid");
+        }
+        else {
+            //GOING DOWN
+            this.controller.setPID(kPDown, kIDown, kDDown);
+            this.controller.setOutputRange(-0.45, 0.45);
+            System.out.println("down pid");
+        }
+//        System.out.println("scheduler: " + position + ", " + lastPosition);
 
         if(position - lastPosition > 0) {
             // INCREASING
             if(position - lastPosition > kMaxSetpointDelta) {
-                System.out.println("Would be scheduled to " + (lastPosition + kMaxSetpointDelta));
-                System.out.println("   instead of: " + position);
+//                System.out.println("Would be scheduled to " + (lastPosition + kMaxSetpointDelta));
+//                System.out.println("   instead of: " + position);
                 position = lastPosition + kMaxSetpointDelta;
             }
         }
         else if (lastPosition - position > 0) {
             // DECREASING
             if(lastPosition - position > kMaxSetpointDelta) {
-                System.out.println("Would be scheduled to " + (lastPosition - kMaxSetpointDelta));
-                System.out.println("   instead of: " + position);
+//                System.out.println("Would be scheduled to " + (lastPosition - kMaxSetpointDelta));
+//                System.out.println("   instead of: " + position);
                 position = lastPosition - kMaxSetpointDelta;
             }
         }
         this.setRawPosition(position);
+        prevPosition = lastPosition;
     }
 
     private int time;
@@ -93,21 +118,24 @@ public class Arm {
     public void setPosition(int position) {
         int newPosition = kBaseValue + position;
         
-        this.targetPosition = newPosition;
-        System.out.println("target position: " + newPosition);
+        
+//        System.out.println("target position: " + newPosition);
 
         if (this.targetPosition > newPosition)
         {
             // Going DOWN
             this.controller.setPID(kPDown, kIDown, kDDown);
             this.controller.setOutputRange(-0.45, 0.45);
+            System.out.println("down pid");
         }
         else
         {
             // Going UP
             this.controller.setPID(kPUp, kIUp, kDUp);
             this.controller.setOutputRange(-0.5, .5);
+            System.out.println("up pid");
         }
+        this.targetPosition = newPosition;
     }
 
     public double getCurrentSpeed() {

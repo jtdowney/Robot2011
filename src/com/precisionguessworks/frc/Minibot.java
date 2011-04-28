@@ -40,7 +40,7 @@ public class Minibot {
         deployServo.set(1);
     }
     
-    public void resetArm() {
+    public final void resetArm() {
         deployServo.set(0);
     }
 
